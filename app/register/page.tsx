@@ -29,12 +29,7 @@ export default function RegisterPage() {
             <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-purple-600 transition-colors mb-8 group">
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Kembali
             </Link>
-            
-            {/* Badge Promo */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-600 text-[10px] font-bold uppercase mb-4">
-              <Rocket className="w-3 h-3 animate-pulse" />
-              Gratis Untuk 1 Bulan Premium
-            </div>
+
 
             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">
               Bergabung Sekarang

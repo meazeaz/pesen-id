@@ -1,0 +1,140 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Bisa diganti 'mysql' jika pakai hosting cPanel biasa
+  url      = env("DATABASE_URL")
+}
+
+// 1. USER (Data Login & Akun Utama)
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  username      String    @unique
+  email         String    @unique
+  image         String?   // Avatar URL
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relasi
+  profile       Profile?
+  products      Product[]
+  orders        Order[]
+  blocks        Block[]
+  bankAccounts  BankAccount[]
+}
+
+// 2. PROFILE (Settingan Tampilan / Settings Page)
+model Profile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  bio           String?   @db.Text
+  
+  // Tampilan (Appearance Tab)
+  layout        String    @default("center") // center, left, hero, bento, compact
+  themeId       String    @default("custom")
+  bgType        String    @default("gradient") // solid, gradient
+  bgValue       String    @default("bg-slate-900") // CSS Class atau Hex Code
+  font          String    @default("font-sans")
+  rounded       String    @default("lg") // sm, md, lg, full
+  shadow        String    @default("md") // none, sm, md, lg
+  
+  // Social Media (Disimpan sebagai JSON biar fleksibel kalau ada sosmed baru)
+  socials       Json?     // { instagram: "...", tiktok: "..." }
+  
+  // SEO & Analytics (Advanced Tab)
+  metaTitle     String?
+  metaDesc      String?   @db.Text
+  views         Int       @default(0)
+  clicks        Int       @default(0)
+}
+
+// 3. BLOCKS (Link & Konten di Halaman Publik)
+model Block {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        String   // header, link, text, social, product_highlight
+  content     String   // Judul link atau isi teks
+  url         String?  // Link tujuan
+  icon        String?  // Ikon (instagram, twitter, dll)
+  image       String?  // Untuk thumbnail custom
+  
+  isActive    Boolean  @default(true)
+  order       Int      @default(0) // Untuk fitur Drag & Drop urutan
+  
+  createdAt   DateTime @default(now())
+}
+
+// 4. PRODUCT (Manajemen Produk Digital)
+model Product {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  title       String
+  description String?  @db.Text
+  price       Int
+  discount    Int?     // Harga coret
+  category    String   // E-book, Course, dll
+  
+  status      String   @default("draft") // active, draft, archived
+  fileUrl     String?  // Link file digital
+  coverUrl    String?  // Gambar cover
+  
+  salesCount  Int      @default(0)
+  features    Json?    // List keunggulan produk ["fitur 1", "fitur 2"]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relasi ke Order (Siapa yang beli produk ini)
+  orders      OrderItem[]
+}
+
+// 5. ORDER (Pesanan Masuk)
+model Order {
+  id            String      @id @default(cuid()) // Order ID (misal: ORD-123)
+  userId        String      // Penjual
+  user          User        @relation(fields: [userId], references: [id])
+  
+  customerName  String
+  customerEmail String
+  customerPhone String?
+  
+  totalAmount   Int
+  status        String      @default("pending") // pending, paid, failed, expired
+  paymentMethod String?     // QRIS, VA_BCA, dll
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  items         OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  price     Int     // Harga saat dibeli (untuk history jika harga berubah)
+}
+
+// 6. BANK ACCOUNT (Dompet & Pencairan)
+model BankAccount {
+  id            String  @id @default(cuid())
+  userId        String
+  user          User    @relation(fields: [userId], references: [id])
+  
+  bankName      String
+  accountNumber String
+  holderName    String
+  isPrimary     Boolean @default(false)
+}
