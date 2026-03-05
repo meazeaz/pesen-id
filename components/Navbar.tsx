@@ -108,7 +108,7 @@ export default function Navbar() {
                 Masuk
               </Link>
               <Link 
-                href="/register" 
+                href="/login" 
                 className="text-sm font-bold bg-slate-900 dark:bg-white text-white dark:text-black px-5 py-2.5 rounded-xl hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-2 group"
               >
                 Daftar <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

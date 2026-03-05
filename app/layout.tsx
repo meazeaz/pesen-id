@@ -1,7 +1,8 @@
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider"; // Pastikan path ini sesuai
+import { ThemeProvider } from "@/components/theme-provider"; 
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
+import AuthProvider from "@/components/AuthProvider"; // 👈 Import Pemancar Sesi
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,14 +19,23 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+        
+        {/* 1. KITA PASANG PEMANCAR SESI DI PALING LUAR */}
+        <AuthProvider>
+          
+          {/* 2. LALU KITA PASANG TEMA GELAP/TERANG DI DALAMNYA */}
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {/* 3. INI ADALAH ISI HALAMAN WEB ANDA */}
+            {children}
+          </ThemeProvider>
+          
+        </AuthProvider>
+
       </body>
     </html>
   );

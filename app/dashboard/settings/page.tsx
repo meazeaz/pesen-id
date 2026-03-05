@@ -1,12 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
+import { useSession } from "next-auth/react"; 
 import { 
   User, Link as LinkIcon, Palette, Save, Smartphone, 
   Type, Layout, Image as ImageIcon, Plus, Trash2, 
   GripVertical, Eye, Check, Sparkles, MoveRight,
-  Moon, Sun, Copy, Twitter, Instagram, Globe
+  Moon, Sun, Copy, Twitter, Instagram, Globe,
+  CreditCard, Building2, ShieldCheck 
 } from "lucide-react";
+
+// Import Server Actions
+import { saveProfile, addBankAccount, deleteBankAccount, getUserSettings } from "@/app/actions/settings";
+import SecuritySettings from "@/components/dashboard/SecuritySettings"; 
 
 // --- TIPE DATA ---
 type BlockType = "header" | "link" | "text" | "social";
@@ -27,12 +33,19 @@ type ProfileState = {
   avatar: string;
   layout: "center" | "left" | "hero" | "compact";
   themeId: string;
-  bgType: "gradient" | "solid"; // Image dihapus
+  bgType: "gradient" | "solid"; 
   bgValue: string;
   font: string;
   rounded: "sm" | "md" | "lg" | "full";
   shadow: "none" | "sm" | "md" | "lg";
   blocks: Block[];
+};
+
+type BankAccount = {
+  id: string;
+  bankName: string;
+  accountNumber: string;
+  holderName: string;
 };
 
 // --- DATA PRESETS ---
@@ -63,7 +76,6 @@ const SOLID_COLORS = [
   { name: "Merah Tua", value: "bg-rose-950" },
 ];
 
-// Font diperbanyak (Pastikan font sudah di-load di layout global jika ingin terlihat bedanya)
 const FONTS = [
   { name: "Inter (Default)", value: "font-sans" },
   { name: "Serif (Classic)", value: "font-serif" },
@@ -88,9 +100,12 @@ const SHADOW_OPTIONS = [
 ];
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"profile" | "appearance" | "advanced">("profile");
+  const { data: session } = useSession(); 
+
+  const [activeTab, setActiveTab] = useState<"profile" | "appearance" | "advanced" | "payment" | "security">("profile");
   const [subTab, setSubTab] = useState<"layout" | "background" | "style">("layout");
-  const [isLoading, setIsLoading] = useState(false);
+  
+  const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
   const [showCopySuccess, setShowCopySuccess] = useState(false);
 
@@ -98,12 +113,12 @@ export default function SettingsPage() {
     setMounted(true);
   }, []);
 
-  // --- STATE UTAMA ---
+  // --- STATE UTAMA (PROFIL) ---
   const [profile, setProfile] = useState<ProfileState>({
-    name: "Toko Sembako Jaya",
-    username: "sembakojaya",
-    bio: "Pusat grosir sembako termurah dan terlengkap. Pengiriman seluruh Indonesia 📦",
-    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=TS&backgroundColor=0ea5e9",
+    name: "Memuat...",
+    username: "memuat",
+    bio: "",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Load&backgroundColor=0ea5e9",
     layout: "center",
     themeId: "custom",
     bgType: "gradient",
@@ -111,16 +126,44 @@ export default function SettingsPage() {
     font: "font-sans",
     rounded: "lg",
     shadow: "md",
-    blocks: [
-      { id: "1", type: "header", content: "🔥 Promo Hari Ini", active: true },
-      { id: "2", type: "link", content: "Katalog Beras Premium", url: "https://example.com/beras", active: true },
-      { id: "3", type: "link", content: "Paket Hemat Sembako", url: "https://example.com/paket", active: true },
-      { id: "4", type: "text", content: "Buka Senin - Sabtu (08.00 - 17.00 WIB)", active: true },
-      { id: "5", type: "social", content: "Instagram", url: "https://instagram.com/sembakojaya", icon: "instagram", active: false },
-    ]
+    blocks: []
   });
 
-  // --- ACTIONS ---
+  // TARIK DATA ASLI DARI DATABASE SAAT HALAMAN DIBUKA
+  useEffect(() => {
+    if (session?.user?.email) {
+      getUserSettings(session.user.email).then((data) => {
+        if (data) {
+          setProfile(prev => ({
+            ...prev,
+            name: data.name,
+            username: data.username,
+            bio: data.bio,
+            avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${data.username}&backgroundColor=8b5cf6`,
+            
+            // 👈 TERIMA SEMUA DATA DESAIN & KONTEN DARI DATABASE
+            layout: (data.layout as any) || "center",
+            bgType: (data.bgType as any) || "gradient",
+            bgValue: data.bgValue || "bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900",
+            font: data.font || "font-sans",
+            rounded: (data.rounded as any) || "lg",
+            shadow: (data.shadow as any) || "md",
+            blocks: data.blocks?.length > 0 ? data.blocks : [
+              { id: "1", type: "header", content: "👋 Halo Semua!", active: true },
+              { id: "2", type: "link", content: "Link Pertama Saya", url: "https://", active: true },
+            ]
+          }));
+          setBanks(data.banks);
+        }
+      });
+    }
+  }, [session?.user?.email]);
+
+  // --- STATE BANK (PEMBAYARAN) ---
+  const [banks, setBanks] = useState<BankAccount[]>([]);
+  const [newBank, setNewBank] = useState({ bankName: "BCA", accountNumber: "", holderName: "" });
+
+  // --- ACTIONS BUILDER ---
   const addBlock = (type: BlockType) => {
     const newBlock: Block = {
       id: Math.random().toString(36).substr(2, 9),
@@ -154,13 +197,67 @@ export default function SettingsPage() {
     });
   };
 
-  const handleSave = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setShowCopySuccess(true);
-      setTimeout(() => setShowCopySuccess(false), 2000);
-    }, 1000);
+  // --- ACTIONS DATABASE ---
+  const handleSaveAll = () => {
+    if (!session?.user?.email) {
+      alert("Sesi tidak ditemukan. Silakan muat ulang halaman.");
+      return;
+    }
+
+    startTransition(async () => {
+      // 👈 KIRIM SEMUA DATA DESAIN & KONTEN KE DATABASE
+      const res = await saveProfile({ 
+        email: session.user?.email as string,
+        name: profile.name, 
+        bio: profile.bio, 
+        layout: profile.layout,
+        bgType: profile.bgType,
+        bgValue: profile.bgValue,
+        font: profile.font,
+        rounded: profile.rounded,
+        shadow: profile.shadow,
+        blocks: profile.blocks
+      });
+
+      if (res.success) {
+        setShowCopySuccess(true);
+        setTimeout(() => setShowCopySuccess(false), 2000);
+        alert("✅ Pengaturan profil & tampilan berhasil disimpan!");
+      } else {
+        alert("❌ Gagal menyimpan profil.");
+      }
+    });
+  };
+
+  const handleAddBank = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session?.user?.email) return;
+
+    startTransition(async () => {
+      const res = await addBankAccount({ 
+        ...newBank, 
+        email: session.user?.email as string 
+      });
+
+      if (res.success) {
+        setBanks([...banks, { id: Date.now().toString(), ...newBank }]);
+        setNewBank({ bankName: "BCA", accountNumber: "", holderName: "" });
+        alert("💳 Rekening berhasil ditambahkan!");
+      } else {
+        alert("❌ Gagal menambahkan rekening.");
+      }
+    });
+  };
+
+  const handleDeleteBank = (id: string) => {
+    if (confirm("Hapus rekening ini?")) {
+      startTransition(async () => {
+        const res = await deleteBankAccount(id);
+        if (res.success) {
+          setBanks(banks.filter(b => b.id !== id));
+        }
+      });
+    }
   };
 
   const copyToClipboard = () => {
@@ -187,7 +284,7 @@ export default function SettingsPage() {
           >
             <Copy className="w-4 h-4" />
             {showCopySuccess && (
-              <span className="absolute -top-8 right-0 bg-black/90 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
+              <span className="absolute -top-8 right-0 bg-black/90 text-white text-xs py-1 px-2 rounded whitespace-nowrap z-50">
                 Link tersalin!
               </span>
             )}
@@ -336,7 +433,6 @@ export default function SettingsPage() {
   );
 
   return (
-    // Menggunakan bg-slate-50 untuk light, dan bg-[#09090b] untuk dark
     <div className="min-h-screen bg-slate-50 dark:bg-[#09090b] text-slate-900 dark:text-slate-200 font-sans transition-colors duration-300">
       
       {/* Header Page */}
@@ -351,15 +447,12 @@ export default function SettingsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2 border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full text-sm transition-all flex items-center gap-2">
-              <Eye className="w-4 h-4" /> Preview
-            </button>
             <button 
-              onClick={handleSave} 
-              disabled={isLoading} 
+              onClick={handleSaveAll} 
+              disabled={isPending} 
               className="px-5 py-2 bg-slate-900 dark:bg-white text-white dark:text-black hover:opacity-90 font-bold rounded-full text-sm transition-all flex items-center gap-2 disabled:opacity-70 shadow-lg"
             >
-              {isLoading ? "Processing..." : <><Save className="w-4 h-4" /> Simpan</>}
+              {isPending ? "Menyimpan..." : <><Save className="w-4 h-4" /> Simpan</>}
             </button>
           </div>
         </div>
@@ -369,40 +462,26 @@ export default function SettingsPage() {
         
         {/* --- KOLOM KIRI: EDITOR (7/12) --- */}
         <div className="lg:col-span-7 space-y-8 pb-20">
-           
-          {/* Navigation Tabs (Light/Dark Compatible) */}
-          <div className="bg-slate-200 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-2xl p-1 flex relative">
-            <div 
-              className={`absolute top-1 bottom-1 w-1/3 bg-white dark:bg-white/10 rounded-xl shadow-sm transition-all duration-300 ease-out ${
-                activeTab === 'profile' ? 'left-1' : 
-                activeTab === 'appearance' ? 'left-[calc(33.33%-4px)]' : 
-                'left-[calc(66.66%-8px)]'
-              }`}
-            />
-            <button 
-              onClick={() => setActiveTab("profile")} 
-              className={`flex-1 py-3 text-sm font-bold rounded-xl flex items-center justify-center gap-2 relative z-10 transition-colors ${
-                activeTab === "profile" ? "text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-              }`}
-            >
-              <User className="w-4 h-4" /> Profil
-            </button>
-            <button 
-              onClick={() => setActiveTab("appearance")} 
-              className={`flex-1 py-3 text-sm font-bold rounded-xl flex items-center justify-center gap-2 relative z-10 transition-colors ${
-                activeTab === "appearance" ? "text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-              }`}
-            >
-              <Palette className="w-4 h-4" /> Tampilan
-            </button>
-            <button 
-              onClick={() => setActiveTab("advanced")} 
-              className={`flex-1 py-3 text-sm font-bold rounded-xl flex items-center justify-center gap-2 relative z-10 transition-colors ${
-                activeTab === "advanced" ? "text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-              }`}
-            >
-              <Layout className="w-4 h-4" /> Lanjutan
-            </button>
+            
+          {/* 👈 TAB NAVIGASI DITAMBAH KEAMANAN */}
+          <div className="bg-slate-200 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-2xl p-1 flex overflow-x-auto no-scrollbar">
+            {[
+              { id: "profile", icon: User, label: "Profil" },
+              { id: "appearance", icon: Palette, label: "Tampilan" },
+              { id: "advanced", icon: Layout, label: "Lanjutan" },
+              { id: "payment", icon: CreditCard, label: "Pembayaran" },
+              { id: "security", icon: ShieldCheck, label: "Keamanan" },
+            ].map((tab) => (
+              <button 
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)} 
+                className={`flex-1 min-w-max px-4 py-3 text-sm font-bold rounded-xl flex items-center justify-center gap-2 relative z-10 transition-colors ${
+                  activeTab === tab.id ? "bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                }`}
+              >
+                <tab.icon className="w-4 h-4" /> <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
           </div>
 
           {/* --- TAB: PROFIL --- */}
@@ -444,7 +523,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-500 ml-1">Nama Tampilan</label>
+                      <label className="text-xs font-semibold text-slate-500 ml-1">Nama Toko / Tampilan</label>
                       <input 
                         type="text" 
                         value={profile.name} 
@@ -603,7 +682,6 @@ export default function SettingsPage() {
           {activeTab === "appearance" && (
             <div className="space-y-8 animate-in slide-in-from-bottom-4 fade-in duration-500">
               
-              {/* Sub Tabs */}
               <div className="flex gap-2 border-b border-slate-200 dark:border-white/10 pb-1">
                 {[
                   { id: "layout", label: "Layout", icon: Layout },
@@ -623,7 +701,7 @@ export default function SettingsPage() {
                 ))}
               </div>
 
-              {/* 1. Layout Selector */}
+              {/* Layout Selector */}
               {subTab === "layout" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {LAYOUTS.map((layout) => (
@@ -649,10 +727,9 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {/* 2. Background Selector */}
+              {/* Background Selector */}
               {subTab === "background" && (
                 <div className="space-y-6">
-                  {/* Background Type (Image removed) */}
                   <div className="bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/5 rounded-3xl p-6">
                     <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-sm">Tipe Background</h3>
                     <div className="flex gap-3">
@@ -676,7 +753,6 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Gradient Presets */}
                   {profile.bgType === "gradient" && (
                     <div className="bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/5 rounded-3xl p-6">
                       <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-sm">Gradient Presets</h3>
@@ -701,7 +777,6 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  {/* Solid Colors */}
                   {profile.bgType === "solid" && (
                     <div className="bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/5 rounded-3xl p-6">
                       <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-sm">Warna Solid</h3>
@@ -728,10 +803,9 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {/* 3. Style Options */}
+              {/* Style Options */}
               {subTab === "style" && (
                 <div className="space-y-6">
-                  {/* Font Selector */}
                   <div className="bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/5 rounded-3xl p-6">
                     <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-sm flex items-center gap-2">
                       <Type className="w-4 h-4" /> Font
@@ -753,7 +827,6 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Rounded Options */}
                   <div className="bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/5 rounded-3xl p-6">
                     <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-sm">Sudut Membulat</h3>
                     <div className="grid grid-cols-4 gap-3">
@@ -773,7 +846,6 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Shadow Options */}
                   <div className="bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/5 rounded-3xl p-6">
                     <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-sm">Bayangan</h3>
                     <div className="grid grid-cols-4 gap-3">
@@ -800,8 +872,6 @@ export default function SettingsPage() {
           {/* --- TAB: LANJUTAN --- */}
           {activeTab === "advanced" && (
             <div className="space-y-8 animate-in slide-in-from-bottom-4 fade-in duration-500">
-              
-              {/* SEO Settings */}
               <div className="bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/5 rounded-3xl p-6">
                 <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-sm flex items-center gap-2">
                   <Globe className="w-4 h-4" /> Pengaturan SEO
@@ -828,7 +898,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Analytics */}
               <div className="bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/5 rounded-3xl p-6">
                 <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-sm flex items-center gap-2">
                   <Eye className="w-4 h-4" /> Analytics
@@ -848,23 +917,101 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
 
-              {/* Danger Zone */}
-              <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-500/20 rounded-3xl p-6">
-                <h3 className="font-bold text-red-600 dark:text-red-400 mb-4 text-sm flex items-center gap-2">
-                  <Trash2 className="w-4 h-4" /> Zona Berbahaya
-                </h3>
-                <div className="space-y-3">
-                  <button className="w-full py-3 px-4 bg-white dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 border border-red-200 dark:border-red-500/30 rounded-xl text-red-600 dark:text-red-400 text-sm font-medium transition-colors">
-                    Hapus Profil
-                  </button>
-                  <button className="w-full py-3 px-4 bg-transparent hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl text-slate-500 dark:text-slate-400 text-sm font-medium transition-colors">
-                    Reset Pengaturan
-                  </button>
+          {/* --- TAB: PEMBAYARAN --- */}
+          {activeTab === "payment" && (
+            <div className="space-y-6 animate-in slide-in-from-bottom-4 fade-in duration-500">
+              <div className="bg-white dark:bg-[#121214] border border-slate-200 dark:border-white/5 rounded-3xl p-6 shadow-sm">
+                <h2 className="font-bold text-lg mb-6 flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-purple-500"/> Rekening Penerimaan Dana
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* List Bank */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Rekening Aktif</h3>
+                    {banks.length > 0 ? banks.map(bank => (
+                      <div key={bank.id} className="p-4 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between bg-slate-50 dark:bg-[#1a1a1a]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white dark:bg-black rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-800 shadow-sm">
+                            <Building2 className="w-5 h-5 text-slate-400" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm uppercase">{bank.bankName} - {bank.accountNumber}</p>
+                            <p className="text-xs text-slate-500">a.n {bank.holderName}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => handleDeleteBank(bank.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Hapus Rekening">
+                          <Trash2 className="w-4 h-4"/>
+                        </button>
+                      </div>
+                    )) : (
+                      <p className="text-sm text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 p-4 rounded-xl text-center">Belum ada rekening.</p>
+                    )}
+                  </div>
+
+                  {/* Form Tambah Bank */}
+                  <form onSubmit={handleAddBank} className="bg-slate-50 dark:bg-[#1a1a1a] p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <h3 className="text-sm font-bold mb-4 flex items-center gap-2"><Plus className="w-4 h-4"/> Tambah Rekening</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold mb-1.5 text-slate-500">Nama Bank / E-Wallet</label>
+                        <select 
+                          value={newBank.bankName} 
+                          onChange={e => setNewBank({...newBank, bankName: e.target.value})} 
+                          className="w-full px-3 py-2.5 bg-white dark:bg-black border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none"
+                        >
+                          <option value="BCA">BCA</option>
+                          <option value="Mandiri">Mandiri</option>
+                          <option value="BNI">BNI</option>
+                          <option value="GoPay">GoPay</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold mb-1.5 text-slate-500">No. Rekening / HP</label>
+                        <input 
+                          type="number" 
+                          required 
+                          placeholder="Nomor Rekening" 
+                          value={newBank.accountNumber} 
+                          onChange={e => setNewBank({...newBank, accountNumber: e.target.value})} 
+                          className="w-full px-3 py-2.5 bg-white dark:bg-black border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none font-mono" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold mb-1.5 text-slate-500">Nama Pemilik</label>
+                        <input 
+                          type="text" 
+                          required 
+                          placeholder="Sesuai buku tabungan" 
+                          value={newBank.holderName} 
+                          onChange={e => setNewBank({...newBank, holderName: e.target.value})} 
+                          className="w-full px-3 py-2.5 bg-white dark:bg-black border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none uppercase" 
+                        />
+                      </div>
+                      <button 
+                        type="submit" 
+                        disabled={isPending} 
+                        className="w-full py-2.5 bg-purple-600 text-white font-bold rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                      >
+                        {isPending ? "Menyimpan..." : "Tambah Rekening"}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
           )}
+
+          {/* 👈 TAB BARU: KEAMANAN AKUN */}
+          {activeTab === "security" && (
+            <div className="space-y-6 animate-in slide-in-from-bottom-4 fade-in duration-500">
+               <SecuritySettings />
+            </div>
+          )}
+
         </div>
 
         {/* --- KOLOM KANAN: PREVIEW (5/12) --- */}

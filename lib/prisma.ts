@@ -1,11 +1,17 @@
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+// Mendeklarasikan variabel prisma di scope global agar TypeScript mengenalinya
+declare global {
+  var prisma: PrismaClient | undefined;
+}
 
+// Mencegah Prisma membuat koneksi baru setiap kali Next.js melakukan hot-reload (save file)
 export const prisma =
-  globalForPrisma.prisma ||
+  global.prisma ||
   new PrismaClient({
-    log: ["query"], // Opsional: Untuk melihat log query SQL di terminal (bagus utk debugging)
+    log: ["query"], // Opsional: Menampilkan log SQL di terminal untuk mempermudah proses debug
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== "production") {
+  global.prisma = prisma;
+}

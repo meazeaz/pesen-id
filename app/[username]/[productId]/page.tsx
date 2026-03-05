@@ -1,10 +1,9 @@
+import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ShieldCheck, MessageCircle } from "lucide-react";
 import type { Metadata } from "next";
-import { getUserAndProduct } from "@/lib/data";
 import CheckoutButton from "@/components/product/CheckoutButton";
-
 
 type Props = {
   params: Promise<{ username: string; productId: string }>;
@@ -12,31 +11,58 @@ type Props = {
 
 // --- 1. SEO OTOMATIS (Dynamic Metadata) ---
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { username, productId } = await params;
-  const data = await getUserAndProduct(username, productId);
+  const resolvedParams = await params;
+  
+  // Ambil data produk untuk meta title & description
+  const product = await prisma.product.findUnique({
+    where: { id: resolvedParams.productId }
+  });
+  
+  const user = await prisma.user.findUnique({
+    where: { username: resolvedParams.username }
+  });
 
-  if (!data) return { title: "Produk Tidak Ditemukan" };
+  if (!product || !user) return { title: "Produk Tidak Ditemukan | Pesen.id" };
 
   return {
-    title: `${data.product.title} by ${data.user.name} | Pesen.id`,
-    description: `Beli ${data.product.title} hanya dengan harga ${data.product.price}.`,
-    openGraph: {
-      images: [data.product.image || ""],
-    },
+    title: `${product.title} by ${user.name || user.username} | Pesen.id`,
+    description: product.description?.slice(0, 150) || `Beli ${product.title} dengan harga terbaik.`,
   };
 }
 
 // --- 2. HALAMAN UTAMA (Server Component) ---
 export default async function ProductDetailPage({ params }: Props) {
-  const { username, productId } = await params;
-  const data = await getUserAndProduct(username, productId);
+  const resolvedParams = await params;
+  const { username, productId } = resolvedParams;
 
-  if (!data) return notFound();
+  // Tarik Data User berdasarkan username
+  const user = await prisma.user.findUnique({
+    where: { username: username },
+  });
 
-  const { user, product } = data;
+  if (!user) return notFound();
+
+  // Tarik Data Produk berdasarkan ID dan pastikan produk ini milik user tersebut
+  const product = await prisma.product.findUnique({
+    where: { 
+      id: productId,
+      userId: user.id // Keamanan: Pastikan URL /username/ dan id produk cocok
+    }
+  });
+
+  // Jika produk tidak ada, atau statusnya bukan "active" (misal: "draft"), tampilkan 404
+  if (!product || product.status !== "active") return notFound();
+
+  // Helper Format Rupiah
+  const formatRupiah = (number: number) => {
+    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(number);
+  };
+
+  // Template Pesan WA Otomatis
+  const waMessage = encodeURIComponent(`Halo kak ${user.name || username}, saya mau tanya tentang produk digital "${product.title}" yang ada di Pesen.id.`);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#050505] font-sans flex flex-col">
+    <div className="min-h-screen bg-white dark:bg-[#050505] font-sans flex flex-col transition-colors duration-300">
       
       {/* Navbar Sederhana */}
       <nav className="p-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-50">
@@ -51,33 +77,38 @@ export default async function ProductDetailPage({ params }: Props) {
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 space-y-8">
         
         {/* Header Produk */}
-        <div className="space-y-4 text-center sm:text-left">
+        <div className="space-y-4 text-center sm:text-left animate-in slide-in-from-bottom-4 duration-500">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs font-bold uppercase tracking-wider">
             {product.category}
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight text-pretty">
             {product.title}
           </h1>
           
           {/* Info Creator */}
           <div className="flex items-center justify-center sm:justify-start gap-3 pt-2">
-            <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-800" />
+            <img 
+              src={user.image || `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=8b5cf6`} 
+              alt={user.name || username} 
+              className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-100 object-cover" 
+            />
             <div className="text-left">
               <p className="text-sm text-slate-500 dark:text-slate-400">Creator</p>
               <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                {user.name} <CheckCircle2 className="w-3 h-3 text-green-500" />
+                {user.name || username} <CheckCircle2 className="w-3 h-3 text-blue-500" />
               </p>
             </div>
           </div>
         </div>
 
         {/* Visual Produk (Card Besar) */}
-        <div className="aspect-video bg-slate-100 dark:bg-slate-900 rounded-3xl flex items-center justify-center text-6xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          {product.image || "📦"}
+        <div className="aspect-video bg-slate-50 dark:bg-[#121212] rounded-3xl flex items-center justify-center text-6xl border border-slate-200 dark:border-slate-800 shadow-sm animate-in zoom-in-95 duration-500">
+          {/* Karena belum ada sistem upload gambar, kita pakai icon box dulu */}
+          📦
         </div>
 
         {/* Detail & Harga (Grid Layout) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pb-20">
           
           {/* Kolom Kiri: Deskripsi & Fitur */}
           <div className="space-y-6">
@@ -88,15 +119,15 @@ export default async function ProductDetailPage({ params }: Props) {
                </p>
             </div>
 
-            {/* List Fitur (Safety Check pakai ?) */}
-            {product.features && product.features.length > 0 && (
+            {/* List Fitur (Jika Ada) */}
+            {product.features && (product.features as string[]).length > 0 && (
               <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-2">Yang Kamu Dapat:</h3>
-                <ul className="space-y-2 text-sm text-slate-500">
-                  {product.features.map((feature, index) => (
-                    <li key={index} className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" /> 
-                      <span>{feature}</span>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-3">Yang Kamu Dapat:</h3>
+                <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                  {(product.features as string[]).map((feature, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" /> 
+                      <span className="leading-relaxed">{feature}</span>
                     </li>
                   ))}
                 </ul>
@@ -105,22 +136,36 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
 
           {/* Kolom Kanan: Card Checkout Sticky */}
-          <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 sticky top-24">
+          <div className="bg-slate-50 dark:bg-[#121212] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 sticky top-24 shadow-sm">
             <div className="flex justify-between items-end mb-6">
               <div>
-                <p className="text-sm text-slate-500 mb-1">Harga Spesial</p>
-                <div className="text-3xl font-extrabold text-slate-900 dark:text-white">{product.price}</div>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Harga Produk</p>
+                <div className="text-3xl font-extrabold text-slate-900 dark:text-white">{formatRupiah(product.price)}</div>
               </div>
-              <div className="text-xs text-red-500 font-bold bg-red-100 dark:bg-red-900/20 px-2 py-1 rounded">
-                Hemat 50%
-              </div>
+              
+              {/* Jika ada harga coret / diskon */}
+              {product.discountPrice && product.discountPrice > product.price && (
+                <div className="text-xs text-red-500 font-bold bg-red-100 dark:bg-red-900/20 px-2 py-1 rounded-lg">
+                  Diskon!
+                </div>
+              )}
             </div>
 
-            {/* Komponen Tombol Beli */}
-            <CheckoutButton price={product.price} productName={product.title} />
+            {/* Komponen Tombol Beli Asli Anda */}
+            <CheckoutButton price={product.price.toString()} productName={product.title} />
 
-            <p className="text-xs text-center text-slate-400 mt-4 flex items-center justify-center gap-1">
-              <ShieldCheck className="w-3 h-3" /> Pembayaran Aman & Terverifikasi
+            {/* 👈 TOMBOL WHATSAPP BARU */}
+            <a 
+              href={`https://wa.me/?text=${waMessage}`} 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full mt-3 py-3.5 bg-green-50 dark:bg-green-900/10 text-green-600 dark:text-green-500 hover:bg-green-100 dark:hover:bg-green-900/30 font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm border border-green-200 dark:border-green-900/30 active:scale-95"
+            >
+              <MessageCircle className="w-5 h-5" /> Tanya Penjual via WA
+            </a>
+
+            <p className="text-xs text-center text-slate-400 mt-5 flex items-center justify-center gap-1.5 font-medium">
+              <ShieldCheck className="w-4 h-4 text-slate-400" /> Pembayaran Aman & Terverifikasi
             </p>
           </div>
 
