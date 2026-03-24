@@ -6,18 +6,18 @@ import { useRouter } from "next/navigation";
 import { 
   ChevronLeft, Save, UploadCloud, Image as ImageIcon, 
   Plus, Trash2, GripVertical, CheckCircle2, DollarSign, 
-  Layers, FileText, Globe, Eye, ArrowLeft, Loader2, AlertCircle
+  Layers, FileText, Globe, Eye, ArrowLeft, AlertCircle
 } from "lucide-react";
 
-// IMPORT KEDUA SERVER ACTION KITA
 import { updateProduct, deleteProduct } from "@/app/actions/product";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function EditProductClient({ initialData }: { initialData: any }) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false); 
   const [isDeleting, setIsDeleting] = useState(false); 
   
-  // State Form Data (Otomatis terisi dari database)
+  // State Form Data
   const [formData, setFormData] = useState({
     title: initialData.title || "",
     price: initialData.price?.toString() || "",
@@ -27,7 +27,6 @@ export default function EditProductClient({ initialData }: { initialData: any })
     status: initialData.status || "active", 
   });
 
-  // State Dynamic Features
   const [features, setFeatures] = useState<string[]>(
     initialData.features?.length > 0 ? initialData.features : [""]
   );
@@ -35,7 +34,6 @@ export default function EditProductClient({ initialData }: { initialData: any })
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  // --- HANDLERS ---
   const handleFeatureChange = (index: number, value: string) => {
     const newFeatures = [...features];
     newFeatures[index] = value;
@@ -58,7 +56,6 @@ export default function EditProductClient({ initialData }: { initialData: any })
     }
   };
 
-  // --- FUNGSI SIMPAN PERUBAHAN KE DATABASE ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -88,7 +85,6 @@ export default function EditProductClient({ initialData }: { initialData: any })
     }
   };
 
-  // --- FUNGSI HAPUS PRODUK DARI DATABASE ---
   const handleDelete = async () => {
     if(confirm("Apakah Anda yakin ingin menghapus produk ini? Tindakan ini tidak bisa dibatalkan.")) {
        setIsDeleting(true);
@@ -107,7 +103,6 @@ export default function EditProductClient({ initialData }: { initialData: any })
     }
   }
 
-  // --- SISA UI ANDA SAMA PERSIS ---
   return (
     <form onSubmit={handleSave} className="min-h-screen bg-slate-50 dark:bg-[#09090b] text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300 pb-20">
       
@@ -150,7 +145,6 @@ export default function EditProductClient({ initialData }: { initialData: any })
         {/* --- KOLOM KIRI (Main Content) --- */}
         <div className="lg:col-span-2 space-y-8">
           
-          {/* 1. Informasi Dasar */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 lg:p-8 shadow-sm">
             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-4">
               <FileText className="w-5 h-5 text-purple-500" /> Informasi Produk
@@ -183,7 +177,6 @@ export default function EditProductClient({ initialData }: { initialData: any })
             </div>
           </div>
 
-          {/* 2. Harga */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 lg:p-8 shadow-sm">
             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-4">
               <DollarSign className="w-5 h-5 text-green-500" /> Harga Jual
@@ -223,7 +216,6 @@ export default function EditProductClient({ initialData }: { initialData: any })
             </div>
           </div>
 
-          {/* 3. Fitur / Keunggulan */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 lg:p-8 shadow-sm">
             <div className="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
               <h3 className="font-bold text-lg flex items-center gap-2">
@@ -272,11 +264,9 @@ export default function EditProductClient({ initialData }: { initialData: any })
         {/* --- KOLOM KANAN (Sidebar Settings) --- */}
         <div className="space-y-8">
           
-          {/* 1. Media Upload (Dengan Preview) */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
             <h3 className="font-bold text-sm text-slate-500 uppercase tracking-wider mb-4">Media Produk</h3>
             
-            {/* Cover Image Preview */}
             <div className="mb-6">
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Cover / Thumbnail</label>
               
@@ -289,14 +279,14 @@ export default function EditProductClient({ initialData }: { initialData: any })
                 />
 
                 {previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={previewUrl} alt="Preview Thumbnail" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold">
+                  <div className="absolute inset-0 bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold">
                     📘
                   </div>
                 )}
                 
-                {/* Overlay Edit */}
                 <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                     <UploadCloud className="w-8 h-8 text-white mb-2" />
                     <span className="text-white text-xs font-bold">Ganti Gambar</span>
@@ -305,7 +295,6 @@ export default function EditProductClient({ initialData }: { initialData: any })
               <p className="text-[10px] text-slate-400 mt-2">Format: PNG, JPG. Maks 2MB.</p>
             </div>
 
-            {/* File Product */}
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">File Produk Digital</label>
               <div className="rounded-2xl border border-green-500/30 bg-green-50 dark:bg-green-900/10 p-4 flex items-center gap-3">
@@ -326,7 +315,7 @@ export default function EditProductClient({ initialData }: { initialData: any })
             </div>
           </div>
 
-          {/* 2. Pengaturan */}
+          {/* 2. Pengaturan (DI SINI "JASA" DIUBAH JADI "ASET DESIGN") */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
             <h3 className="font-bold text-sm text-slate-500 uppercase tracking-wider mb-4">Pengaturan</h3>
             
@@ -344,7 +333,8 @@ export default function EditProductClient({ initialData }: { initialData: any })
                     <option value="Course">Course</option>
                     <option value="Template">Template</option>
                     <option value="Software">Software</option>
-                    <option value="Jasa">Jasa</option>
+                    {/* 👇 INI YANG KITA UBAH! */}
+                    <option value="Aset Design">Aset Design</option>
                   </select>
                 </div>
               </div>
@@ -364,6 +354,7 @@ export default function EditProductClient({ initialData }: { initialData: any })
                   </select>
                 </div>
               </div>
+
             </div>
           </div>
 

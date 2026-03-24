@@ -1,4 +1,4 @@
-import { getMyOrders } from "@/app/actions/order"; // 👈 Import fungsi baru kita
+import { getMyOrders } from "@/app/actions/order"; 
 import OrderListClient from "./OrderListClient";
 
 export default async function OrdersPage() {

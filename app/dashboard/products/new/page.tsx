@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-// 1. IMPORT useRouter DARI NEXT/NAVIGATION
 import { useRouter } from "next/navigation"; 
 import { 
   ChevronLeft, Save, UploadCloud, Image as ImageIcon, 
@@ -13,8 +12,6 @@ import { createProduct } from "@/app/actions/product";
 
 export default function AddProductPage() {
   const [isLoading, setIsLoading] = useState(false);
-  
-  // 2. INISIALISASI ROUTER UNTUK PINDAH HALAMAN
   const router = useRouter(); 
   
   // State Form Data
@@ -73,17 +70,16 @@ export default function AddProductPage() {
       // Tembak ke Database lewat Server Action
       const response = await createProduct(payload);
 
-      // 3. JIKA SUKSES: MUNCULKAN NOTIFIKASI & PINDAH HALAMAN
       if (response && response.success) {
         alert("🎉 Hore! Produk berhasil diterbitkan ke database.");
-        router.push("/dashboard/products"); // Pindah halaman
-        router.refresh(); // Refresh data tabel agar produk baru langsung muncul
+        router.push("/dashboard/products");
+        router.refresh(); 
       }
 
     } catch (error) {
       console.error(error);
       alert("❌ Gagal menyimpan produk. Silakan coba lagi.");
-      setIsLoading(false); // Matikan loading jika error
+      setIsLoading(false); 
     }
   };
 
@@ -266,6 +262,7 @@ export default function AddProductPage() {
                 />
 
                 {previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={previewUrl} alt="Preview Thumbnail" className="w-full h-full object-cover" />
                 ) : (
                   <div className="p-4 flex flex-col items-center">
@@ -295,7 +292,7 @@ export default function AddProductPage() {
             </div>
           </div>
 
-          {/* 2. Pengaturan */}
+          {/* 2. Pengaturan (DI SINI "JASA" DIUBAH JADI "ASET DESIGN") */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
             <h3 className="font-bold text-sm text-slate-500 uppercase tracking-wider mb-4">Pengaturan</h3>
             
@@ -309,11 +306,12 @@ export default function AddProductPage() {
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
                   >
-                    <option>E-book</option>
-                    <option>Course</option>
-                    <option>Template</option>
-                    <option>Software</option>
-                    <option>Jasa</option>
+                    <option value="E-book">E-book</option>
+                    <option value="Course">Course</option>
+                    <option value="Template">Template</option>
+                    <option value="Software">Software</option>
+                    {/* 👇 INI YANG KITA UBAH! */}
+                    <option value="Aset Design">Aset Design</option>
                   </select>
                 </div>
               </div>

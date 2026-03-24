@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth"; // 👈 Kunci utama deteksi login
+import { getServerSession } from "next-auth";
 
 // ==========================================
 // 1. FUNGSI AMBIL DAFTAR PESANAN (KHUSUS PEMILIK TOKO)
@@ -16,14 +16,13 @@ export async function getMyOrders() {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) return [];
 
-    // HANYA ambil pesanan yang masuk ke toko user ini (berdasarkan userId)
     const orders = await prisma.order.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       include: {
         items: {
           include: {
-            product: true, // Sertakan info produknya
+            product: true,
           },
         },
       },
@@ -54,9 +53,11 @@ export async function createOrder(formData: FormData) {
     throw new Error("Gagal membuat pesanan: Produk tidak ditemukan");
   }
 
+  // 👇 PERHATIKAN: Saat pertama kali dibuat, statusnya selalu "pending"
+  // Karena pembeli baru niat bayar, belum keluarin uang.
   const newOrder = await prisma.order.create({
     data: {
-      userId: product.userId, // Pesanan ini masuk ke "KTP" pemilik produk
+      userId: product.userId, 
       customerName: name,
       customerEmail: email,
       customerPhone: phone,
@@ -75,7 +76,7 @@ export async function createOrder(formData: FormData) {
 }
 
 // ==========================================
-// 3. FUNGSI UBAH STATUS PESANAN (UNTUK PEMILIK TOKO)
+// 3. FUNGSI UBAH STATUS MANUAL (OLEH PENJUAL DI DASHBOARD)
 // ==========================================
 export async function updateOrderStatus(orderId: string, newStatus: string) {
   const session = await getServerSession();
@@ -85,11 +86,10 @@ export async function updateOrderStatus(orderId: string, newStatus: string) {
   if (!user) return { success: false, message: "User tidak ditemukan" };
 
   try {
-    // KEAMANAN GANDA: Pastikan hanya pemilik toko yang bisa ubah status pesanan ini
     await prisma.order.updateMany({
       where: { 
         id: orderId,
-        userId: user.id // Hanya update jika ID Pesanan DAN ID Pemilik Toko cocok!
+        userId: user.id 
       },
       data: { status: newStatus },
     });

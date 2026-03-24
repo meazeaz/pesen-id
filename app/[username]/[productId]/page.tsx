@@ -152,8 +152,11 @@ export default async function ProductDetailPage({ params }: Props) {
             </div>
 
             {/* Komponen Tombol Beli Asli Anda */}
-            <CheckoutButton price={product.price.toString()} productName={product.title} />
-
+            <CheckoutButton 
+              price={product.price.toString()} 
+              productName={product.title} 
+              productId={product.id} 
+            />
             {/* 👈 TOMBOL WHATSAPP BARU */}
             <a 
               href={`https://wa.me/?text=${waMessage}`} 

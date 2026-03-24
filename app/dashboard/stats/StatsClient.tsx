@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { 
-  BarChart3, ArrowUpRight, ArrowDownRight, 
+  BarChart3, ArrowUpRight, 
   MousePointer2, Eye, DollarSign, Globe, Smartphone, 
   Monitor, Instagram, Twitter
 } from "lucide-react";
 
-// Tipe Data Props (Diperbarui untuk Grafik)
+// Tipe Data Baru (Disesuaikan dengan mesin)
 type StatsData = {
   views: number;
   clicks: number;
@@ -15,17 +15,18 @@ type StatsData = {
   revenue: number;
   topLinks: Array<{ title: string; clicks: number; type: string }>;
   chartData: Array<{
-    viewHeight: number;
-    clickHeight: number;
-    rawViews: number;
-    rawClicks: number;
+    date: string;
+    revenue: number;
+    sales: number;
+    revHeight: number;
+    salesHeight: number;
   }>;
   trafficSources: Array<{ id: string; name: string; count: number; percent: number }>;
   devices: Array<{ id: string; name: string; count: number; percent: number; color: string }>;
 };
 
 export default function StatsClient({ stats }: { stats: StatsData }) {
-  const [timeRange, setTimeRange] = useState("30d");
+  const [timeRange, setTimeRange] = useState("14d");
 
   // Helper Format Rupiah
   const formatRupiah = (num: number) => {
@@ -33,7 +34,7 @@ export default function StatsClient({ stats }: { stats: StatsData }) {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
   }
 
-  // Fungsi untuk merender Icon berdasarkan ID
+  // Fungsi untuk merender Icon
   const renderTrafficIcon = (id: string) => {
     switch(id) {
       case "instagram": return <Instagram className="w-4 h-4 text-pink-500" />;
@@ -66,7 +67,7 @@ export default function StatsClient({ stats }: { stats: StatsData }) {
           </div>
           
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 p-1 rounded-xl flex shadow-sm">
-             {["7d", "30d", "90d"].map((range) => (
+             {["7d", "14d", "30d"].map((range) => (
                 <button
                    key={range}
                    onClick={() => setTimeRange(range)}
@@ -76,26 +77,19 @@ export default function StatsClient({ stats }: { stats: StatsData }) {
                          : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                    }`}
                 >
-                   {range === "7d" ? "7 Hari" : range === "30d" ? "30 Hari" : "3 Bulan"}
+                   {range === "7d" ? "7 Hari" : range === "14d" ? "14 Hari" : "30 Hari"}
                 </button>
              ))}
           </div>
         </div>
 
-        {/* --- 1. KEY METRICS CARDS (DATA ASLI) --- */}
+        {/* --- 1. KEY METRICS CARDS --- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-           
-           {/* Card: Total Views */}
-           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm hover:border-purple-500/30 transition-colors">
+           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
               <div className="flex justify-between items-start mb-4">
                  <div className="p-2.5 bg-blue-100 dark:bg-blue-900/20 text-blue-600 rounded-xl">
                     <Eye className="w-5 h-5" />
                  </div>
-                 {stats.views > 0 && (
-                   <span className="flex items-center text-[10px] font-bold text-green-500 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                      <ArrowUpRight className="w-3 h-3 mr-1" /> +12%
-                   </span>
-                 )}
               </div>
               <div>
                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Total Views</p>
@@ -103,8 +97,7 @@ export default function StatsClient({ stats }: { stats: StatsData }) {
               </div>
            </div>
 
-           {/* Card: Clicks */}
-           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm hover:border-purple-500/30 transition-colors">
+           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
               <div className="flex justify-between items-start mb-4">
                  <div className="p-2.5 bg-purple-100 dark:bg-purple-900/20 text-purple-600 rounded-xl">
                     <MousePointer2 className="w-5 h-5" />
@@ -116,8 +109,7 @@ export default function StatsClient({ stats }: { stats: StatsData }) {
               </div>
            </div>
 
-           {/* Card: CTR */}
-           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm hover:border-purple-500/30 transition-colors">
+           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm">
               <div className="flex justify-between items-start mb-4">
                  <div className="p-2.5 bg-orange-100 dark:bg-orange-900/20 text-orange-600 rounded-xl">
                     <BarChart3 className="w-5 h-5" />
@@ -129,7 +121,6 @@ export default function StatsClient({ stats }: { stats: StatsData }) {
               </div>
            </div>
 
-           {/* Card: Revenue */}
            <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-purple-900 dark:to-indigo-900 p-5 rounded-2xl shadow-lg text-white relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
               <div className="flex justify-between items-start mb-4 relative z-10">
@@ -142,52 +133,51 @@ export default function StatsClient({ stats }: { stats: StatsData }) {
                  <h3 className="text-xl lg:text-2xl font-extrabold mt-1">{formatRupiah(stats.revenue)}</h3>
               </div>
            </div>
-
         </div>
 
         {/* --- 2. TRAFFIC & CHART SECTION --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
            
-           {/* Chart Area (Views Trend) */}
+           {/* Chart Area (Sekarang adalah Trend Penjualan REAL-TIME) */}
            <div className="lg:col-span-2 bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                 <h3 className="font-bold text-lg">Trend Kunjungan</h3>
-                 <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-purple-500"></div> Views</span>
-                    <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-400"></div> Clicks</span>
+              <div className="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                 <h3 className="font-bold text-lg">Trend Pendapatan (14 Hari)</h3>
+                 <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-purple-500"></div> Pendapatan</span>
+                    <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-blue-400"></div> Pesanan</span>
                  </div>
               </div>
               
-              {/* CSS Bar Chart Dinamis (Terkoneksi ke Database) */}
-              <div className="h-64 flex items-end justify-between gap-2 sm:gap-4 pt-6">
+              {/* CSS Bar Chart Dinamis */}
+              <div className="h-64 flex items-end justify-between gap-1 sm:gap-3 pt-6">
                  {stats.chartData.map((val, i) => (
                     <div key={i} className="flex-1 flex flex-col justify-end gap-1 h-full group relative cursor-pointer">
                        
-                       {/* Tooltip Keren Muncul Saat Di-hover */}
-                       {(val.rawViews > 0 || val.rawClicks > 0) && (
-                         <div className="opacity-0 group-hover:opacity-100 absolute -top-14 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold py-2 px-3 rounded-lg mb-2 transition-opacity whitespace-nowrap z-10 shadow-xl pointer-events-none flex flex-col items-center">
-                            <span>{val.rawViews.toLocaleString()} Views</span>
-                            <span className="text-blue-400 dark:text-blue-600">{val.rawClicks.toLocaleString()} Clicks</span>
+                       {/* Tooltip Dinamis Muncul Saat Di-hover */}
+                       {(val.revenue > 0 || val.sales > 0) && (
+                         <div className="opacity-0 group-hover:opacity-100 absolute bottom-[110%] left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold py-2 px-3 rounded-lg transition-opacity whitespace-nowrap z-10 shadow-xl pointer-events-none flex flex-col items-center">
+                            <span className="text-purple-400 dark:text-purple-600 mb-1">{formatRupiah(val.revenue)}</span>
+                            <span className="opacity-80">{val.sales} Pesanan</span>
+                            <span className="text-[9px] opacity-50 mt-1 font-normal">{val.date}</span>
                             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 dark:bg-white rotate-45"></div>
                          </div>
                        )}
 
-                       {/* Bar Views */}
-                       <div className="w-full bg-purple-500/90 rounded-t-sm relative transition-all duration-700 ease-out group-hover:bg-purple-600" style={{height: `${val.viewHeight}%`, minHeight: val.viewHeight > 0 ? '4px' : '0'}}></div>
-                       {/* Bar Clicks */}
-                       <div className="w-full bg-blue-400/90 rounded-t-sm relative transition-all duration-700 ease-out delay-75 group-hover:bg-blue-500" style={{height: `${val.clickHeight}%`, minHeight: val.clickHeight > 0 ? '2px' : '0'}}></div>
+                       {/* Bar Pendapatan */}
+                       <div className="w-full bg-purple-500/90 rounded-t-sm relative transition-all duration-700 ease-out group-hover:bg-purple-600" style={{height: `${val.revHeight}%`, minHeight: val.revHeight > 0 ? '4px' : '0'}}></div>
+                       {/* Bar Pesanan */}
+                       <div className="w-full bg-blue-400/90 rounded-t-sm relative transition-all duration-700 ease-out delay-75 group-hover:bg-blue-500" style={{height: `${val.salesHeight}%`, minHeight: val.salesHeight > 0 ? '2px' : '0'}}></div>
+                       
+                       {/* Label Tanggal di bawah Tiang */}
+                       <span className="text-[8px] text-slate-400 text-center mt-2 absolute -bottom-6 left-1/2 -translate-x-1/2 -rotate-45 sm:rotate-0 truncate w-full">
+                          {val.date.split(" ")[0]}
+                       </span>
                     </div>
                  ))}
               </div>
-              <div className="flex justify-between mt-2 text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-                 <span>Minggu 1</span>
-                 <span>Minggu 2</span>
-                 <span>Minggu 3</span>
-                 <span>Minggu 4</span>
-              </div>
            </div>
 
-           {/* --- SUMBER TRAFFIC DINAMIS --- */}
+           {/* --- SUMBER TRAFFIC (Statik Sementara) --- */}
            <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col">
               <h3 className="font-bold text-lg mb-6">Sumber Traffic</h3>
               
@@ -207,7 +197,7 @@ export default function StatsClient({ stats }: { stats: StatsData }) {
                  ))}
               </div>
 
-              {/* --- DEVICE BREAKDOWN DINAMIS --- */}
+              {/* --- DEVICE BREAKDOWN --- */}
               <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Perangkat</h4>
                  <div className="flex gap-4">
@@ -228,7 +218,7 @@ export default function StatsClient({ stats }: { stats: StatsData }) {
 
         </div>
 
-        {/* --- 3. TOP PERFORMING LINKS (DATA ASLI) --- */}
+        {/* --- 3. TOP PERFORMING LINKS --- */}
         <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
            <div className="p-6 border-b border-slate-200 dark:border-slate-800">
               <h3 className="font-bold text-lg">Top Produk Tersukses</h3>
