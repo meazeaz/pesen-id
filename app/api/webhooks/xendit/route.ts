@@ -3,43 +3,49 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
-    // 1. Tangkap "Surat Laporan" yang dikirim otomatis oleh server Xendit
     const data = await req.json();
-    console.log("Menerima Laporan dari Xendit:", data);
+    console.log("Webhook diterima dari Xendit:", data);
 
-    // 2. Ambil ID Pesanan (Xendit menyebutnya external_id) dan Statusnya
     const orderId = data.external_id;
-    const xenditStatus = data.status; // Biasanya isinya "PAID" atau "EXPIRED"
+    const status = data.status;
 
-    // 3. Jika tidak ada orderId, tolak laporannya
     if (!orderId) {
       return NextResponse.json({ message: "Data tidak lengkap" }, { status: 400 });
     }
 
-    // 4. UPDATE DATABASE OTOMATIS BERDASARKAN LAPORAN XENDIT!
-    if (xenditStatus === "PAID") {
-      // Jika Xendit lapor sudah dibayar, ubah status di DB jadi 'paid'
+    // --- LOGIKA UPDATE STATUS OTOMATIS ---
+    if (status === "PAID") {
       await prisma.order.update({
         where: { id: orderId },
-        data: { status: "paid" }
+        data: { 
+          status: "paid", 
+          paidAt: new Date(), 
+          paymentId: data.id 
+        }
       });
-      console.log(`✅ HORE! Pesanan ${orderId} otomatis lunas!`);
+      console.log(`✅ Order ${orderId} LUNAS!`);
       
-    } else if (xenditStatus === "EXPIRED" || xenditStatus === "FAILED") {
-      // Jika Xendit lapor waktu habis / batal, ubah status di DB jadi 'failed'
+    } else if (status === "EXPIRED") {
+      // Pembeli telat bayar / waktu habis
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { status: "expired" }
+      });
+      console.log(`⏰ Order ${orderId} KADALUARSA.`);
+
+    } else if (status === "FAILED") {
+      // Pembayaran gagal oleh bank
       await prisma.order.update({
         where: { id: orderId },
         data: { status: "failed" }
       });
-      console.log(`❌ YAHH! Pesanan ${orderId} gagal/expired.`);
+      console.log(`❌ Order ${orderId} GAGAL.`);
     }
 
-    // 5. Wajib balas pesan Xendit dengan "Oke, laporannya sudah diterima" 
-    // agar Xendit tidak nge-spam kirim laporan terus-terusan.
-    return NextResponse.json({ message: "Webhook sukses diterima" }, { status: 200 });
+    return NextResponse.json({ message: "Webhook sukses" }, { status: 200 });
 
   } catch (error) {
-    console.error("Webhook Error:", error);
-    return NextResponse.json({ message: "Server Error" }, { status: 500 });
+    console.error("Webhook error:", error);
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }

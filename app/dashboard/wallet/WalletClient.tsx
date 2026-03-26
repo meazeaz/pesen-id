@@ -205,8 +205,9 @@ export default function WalletClient({ walletData }: { walletData: WalletData })
                  </thead>
                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {filteredTrx.length > 0 ? (
-                      filteredTrx.map((trx) => (
-                         <tr key={trx.id} className="group hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                      // 👇 INI DIA OBATNYA: Menambahkan "index" agar key selalu unik
+                      filteredTrx.map((trx, index) => (
+                         <tr key={`${trx.id}-${index}`} className="group hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
                             <td className="px-6 py-4">
                                <div className="flex items-center gap-3">
                                   <div className={`p-2 rounded-full ${

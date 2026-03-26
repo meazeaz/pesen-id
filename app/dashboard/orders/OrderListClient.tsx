@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateOrderStatus } from "@/app/actions/order"; 
+import { updateOrderStatus } from "@/app/actions/order"; // 👈 KITA PANGGIL LAGI MESIN UBAH STATUS
 import { 
-  Search, Filter, ShoppingBag, Calendar, CreditCard, 
-  CheckCircle2, XCircle, Clock, ArrowUpRight, Eye, Download
+  Search, ShoppingBag, Calendar, CreditCard, 
+  CheckCircle2, XCircle, Clock, ArrowUpRight, Download
 } from "lucide-react";
 
 export type OrderData = {
@@ -23,7 +23,7 @@ export type OrderData = {
 export default function OrderListClient({ initialOrders }: { initialOrders: OrderData[] }) {
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition(); // 👈 KITA AKTIFKAN LAGI
 
   // 1. Logic Filter
   const filteredOrders = initialOrders.filter(order => {
@@ -44,12 +44,13 @@ export default function OrderListClient({ initialOrders }: { initialOrders: Orde
 
   const formatRupiah = (num: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
 
-  // 3. Helper Warna & Icon Status (Disesuaikan dengan Alur E-Commerce)
+  // 3. Helper Warna & Icon Status
   const getStatusColor = (status: string) => {
     switch(status) {
       case "paid": return "bg-green-100 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400";
       case "pending": return "bg-yellow-100 text-yellow-600 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400";
       case "failed": return "bg-red-100 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400";
+      case "expired": return "bg-slate-200 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400";
       default: return "bg-slate-100 text-slate-600";
     }
   };
@@ -59,11 +60,12 @@ export default function OrderListClient({ initialOrders }: { initialOrders: Orde
       case "paid": return <CheckCircle2 className="w-3 h-3" />;
       case "pending": return <Clock className="w-3 h-3" />;
       case "failed": return <XCircle className="w-3 h-3" />;
+      case "expired": return <Clock className="w-3 h-3 opacity-50" />;
       default: return null;
     }
   };
 
-  // 4. Fungsi Mengubah Status
+  // 4. FUNGSI UBAH STATUS (Dikembalikan!)
   const handleStatusChange = (orderId: string, newStatus: string) => {
     startTransition(async () => {
       await updateOrderStatus(orderId, newStatus);
@@ -84,7 +86,7 @@ export default function OrderListClient({ initialOrders }: { initialOrders: Orde
               </span>
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-              Pantau semua transaksi masuk dan status pembayaran pembeli.
+              Mode Manual: Ubah status pesanan secara manual selama di Localhost.
             </p>
           </div>
           <button className="px-5 py-2.5 bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white font-bold rounded-xl text-sm shadow-sm hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center gap-2">
@@ -115,7 +117,7 @@ export default function OrderListClient({ initialOrders }: { initialOrders: Orde
                  </div>
                  <h3 className="text-2xl font-bold">{totalPending} Pesanan</h3>
               </div>
-              <p className="text-xs text-slate-400 mt-2">Pembeli belum melakukan transfer.</p>
+              <p className="text-xs text-slate-400 mt-2">Menunggu konfirmasi manual Anda.</p>
            </div>
 
            {/* Card 3: Sukses */}
@@ -129,7 +131,7 @@ export default function OrderListClient({ initialOrders }: { initialOrders: Orde
                  </div>
                  <h3 className="text-2xl font-bold">{totalSukses}</h3>
               </div>
-              <p className="text-xs text-slate-400 mt-2">Pembayaran berhasil diverifikasi.</p>
+              <p className="text-xs text-slate-400 mt-2">Berhasil dikonfirmasi manual.</p>
            </div>
         </div>
 
@@ -139,11 +141,11 @@ export default function OrderListClient({ initialOrders }: { initialOrders: Orde
            {/* Toolbar */}
            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50/50 dark:bg-white/5">
               <div className="flex bg-slate-200 dark:bg-black/40 p-1 rounded-xl w-full md:w-auto">
-                 {/* 👇 Teks Filter Diperjelas */}
                  {[
                    { id: "all", label: "Semua" }, 
                    { id: "paid", label: "Berhasil" }, 
                    { id: "pending", label: "Pending" }, 
+                   { id: "expired", label: "Kadaluarsa" },
                    { id: "failed", label: "Gagal" }
                  ].map((status) => (
                     <button
@@ -181,7 +183,7 @@ export default function OrderListClient({ initialOrders }: { initialOrders: Orde
                        <th className="px-6 py-4 font-bold tracking-wider">Pelanggan</th>
                        <th className="px-6 py-4 font-bold tracking-wider">Produk</th>
                        <th className="px-6 py-4 font-bold tracking-wider">Total</th>
-                       <th className="px-6 py-4 font-bold tracking-wider">Status Pembayaran</th>
+                       <th className="px-6 py-4 font-bold tracking-wider">Status Tampilan</th>
                        <th className="px-6 py-4 font-bold tracking-wider text-right">Aksi Manual</th>
                     </tr>
                  </thead>
@@ -228,12 +230,11 @@ export default function OrderListClient({ initialOrders }: { initialOrders: Orde
                              <td className="px-6 py-4">
                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${getStatusColor(order.status)}`}>
                                    {getStatusIcon(order.status)}
-                                   {/* 👇 Penyesuaian Nama Status */}
-                                   {order.status === 'paid' ? 'Berhasil' : order.status === 'pending' ? 'Pending' : 'Gagal'}
+                                   {order.status === 'paid' ? 'Berhasil' : order.status === 'pending' ? 'Pending' : order.status === 'expired' ? 'Kadaluarsa' : 'Gagal'}
                                 </span>
                              </td>
 
-                             {/* Action (Dropdown Ubah Status) */}
+                             {/* Keterangan Otomatis Diganti Jadi Dropdown Manual Lagi */}
                              <td className="px-6 py-4 text-right">
                                <select 
                                  value={order.status}
@@ -243,6 +244,7 @@ export default function OrderListClient({ initialOrders }: { initialOrders: Orde
                                >
                                  <option value="pending">⏳ Pending</option>
                                  <option value="paid">✅ Berhasil</option>
+                                 <option value="expired">⏰ Kadaluarsa</option>
                                  <option value="failed">❌ Gagal/Batal</option>
                                </select>
                              </td>

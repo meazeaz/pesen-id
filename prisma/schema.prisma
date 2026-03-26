@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,18 +7,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 1. USER (Data Login & Akun Utama)
+// ============= ENUMS =============
+enum OrderStatus {
+  pending
+  paid
+  failed
+  expired
+}
+
+// ============= MODELS =============
 model User {
   id            String        @id @default(cuid())
   name          String?
   username      String        @unique
   email         String        @unique
-  image         String?       // Avatar URL
+  image         String?
   password      String?      
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  // Relasi
   profile       Profile?
   products      Product[]
   orders        Order[]
@@ -29,14 +34,11 @@ model User {
   reviews       Review[]
 }
 
-// 2. PROFILE (Desain Toko)
 model Profile {
   id        String   @id @default(cuid())
   userId    String   @unique
   bio       String?  @db.Text
   themeId   String?  @default("custom")
-
-  // Tampilan (Appearance Tab)
   layout    String?  @default("center")
   bgType    String?  @default("gradient")
   bgValue   String?  @default("bg-slate-900")
@@ -44,56 +46,43 @@ model Profile {
   rounded   String?  @default("lg")
   shadow    String?  @default("md")
   blocks    Json?    
-
-  // Social Media & SEO
   socials   Json?
   metaTitle String?
   metaDesc  String?  @db.Text
   views     Int      @default(0)
   clicks    Int      @default(0)
 
-  // Relasi ke User
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// 3. BLOCKS (Link & Konten di Halaman Publik)
 model Block {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
   type      String   
   content   String   
   url       String?  
   icon      String?  
   image     String?  
-  
   isActive  Boolean  @default(true)
   order     Int      @default(0) 
-  
   createdAt DateTime @default(now())
 }
 
-// 4. PRODUCT (Manajemen Produk Digital)
 model Product {
   id            String      @id @default(cuid())
   userId        String
-  // 👇 Penambahan onDelete: Cascade agar aman
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
   title         String
   description   String?     @db.Text
   price         Int
   discountPrice Int?        
   category      String
-  
   status        String      @default("active") 
   fileUrl       String?     
   imageUrl      String?     
-  
   salesCount    Int         @default(0)
   features      String[]    
-  
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   
@@ -101,11 +90,9 @@ model Product {
   reviews       Review[]
 }
 
-// 5. ORDER (Pesanan Masuk)
 model Order {
   id            String      @id @default(cuid())
   userId        String      
-  // 👇 Penambahan onDelete: Cascade
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   customerName  String
@@ -113,8 +100,12 @@ model Order {
   customerPhone String?
   
   totalAmount   Int
-  status        String      @default("pending") 
+  status        OrderStatus @default(pending)
   paymentMethod String?     
+  paymentId     String?     
+  
+  paidAt        DateTime?   
+  expiredAt     DateTime?   
   
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -126,40 +117,32 @@ model Order {
 model OrderItem {
   id        String  @id @default(cuid())
   orderId   String
-  // 👇 Penambahan onDelete: Cascade
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId String
   product   Product @relation(fields: [productId], references: [id])
   price     Int     
 }
 
-// 6. BANK ACCOUNT (Dompet & Pencairan)
 model BankAccount {
   id            String  @id @default(cuid())
   userId        String
-  // 👇 Penambahan onDelete: Cascade
   user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
   bankName      String
   accountNumber String
   holderName    String
   isPrimary     Boolean @default(false)
 }
 
-// 7. REVIEW (Ulasan Pembeli)
 model Review {
   id          String   @id @default(cuid())
-  userId      String   // ID Pemilik Toko (Kreator)
-  productId   String   // Produk apa yang diulas
-  orderId     String   @unique // 1 Pesanan hanya boleh 1 kali ulas
-  
-  customerName String  // Nama pembeli (diambil dari Order)
-  rating      Int      // Bintang 1-5
+  userId      String
+  productId   String
+  orderId     String   @unique
+  customerName String
+  rating      Int
   comment     String   @db.Text
-  
   createdAt   DateTime @default(now())
 
-  // Relasi
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
