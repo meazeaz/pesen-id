@@ -80,34 +80,6 @@ function OnboardingContent() {
               )}
             </div>
           </div>
-
-          {/* Input Password Baru */}
-          <div className="group">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-              Buat Password (Untuk Login Manual)
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-slate-400 group-focus-within:text-purple-600 transition-colors" />
-              </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                required
-                minLength={6}
-                className="pl-11 pr-10 block w-full px-4 py-4 bg-slate-50 dark:bg-black border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base shadow-sm"
-                placeholder="Minimal 6 karakter"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-              >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            </div>
-          </div>
-
           <button
             type="submit"
             disabled={isLoading || username.length < 4}

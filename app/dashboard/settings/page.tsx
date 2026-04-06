@@ -160,7 +160,7 @@ export default function SettingsPage() {
               { id: "appearance", icon: Palette, label: "Tampilan" },
               { id: "advanced", icon: Layout, label: "Lanjutan" },
               { id: "payment", icon: CreditCard, label: "Pembayaran" },
-              { id: "security", icon: ShieldCheck, label: "Keamanan" },
+  
             ].map((tab) => (
               <button 
                 key={tab.id}
