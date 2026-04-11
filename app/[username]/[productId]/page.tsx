@@ -76,8 +76,8 @@ export default async function ProductDetailPage({ params }: Props) {
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 space-y-8">
         
-        {/* Header Produk */}
-        <div className="space-y-4 text-center sm:text-left animate-in slide-in-from-bottom-4 duration-500">
+        {/* Header Produk (Tengah) */}
+        <div className="space-y-4 flex flex-col items-center text-center animate-in slide-in-from-bottom-4 duration-500">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs font-bold uppercase tracking-wider">
             {product.category}
           </div>
@@ -86,7 +86,7 @@ export default async function ProductDetailPage({ params }: Props) {
           </h1>
           
           {/* Info Creator */}
-          <div className="flex items-center justify-center sm:justify-start gap-3 pt-2">
+          <div className="flex items-center justify-center gap-3 pt-2">
             <img 
               src={user.image || `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=8b5cf6`} 
               alt={user.name || username} 
@@ -101,10 +101,14 @@ export default async function ProductDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Visual Produk (Card Besar) */}
-        <div className="aspect-video bg-slate-50 dark:bg-[#121212] rounded-3xl flex items-center justify-center text-6xl border border-slate-200 dark:border-slate-800 shadow-sm animate-in zoom-in-95 duration-500">
-          {/* Karena belum ada sistem upload gambar, kita pakai icon box dulu */}
-          📦
+        {/* 👇 INI YANG KITA UBAH: Visual Produk (Card Besar) Terkoneksi Database */}
+        <div className="aspect-video bg-slate-50 dark:bg-[#121212] rounded-3xl flex items-center justify-center text-6xl border border-slate-200 dark:border-slate-800 shadow-sm animate-in zoom-in-95 duration-500 overflow-hidden relative">
+          {product.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover" />
+          ) : (
+            <span>📦</span>
+          )}
         </div>
 
         {/* Detail & Harga (Grid Layout) */}
@@ -151,13 +155,13 @@ export default async function ProductDetailPage({ params }: Props) {
               )}
             </div>
 
-            {/* Komponen Tombol Beli Asli Anda */}
+            {/* Komponen Tombol Beli */}
             <CheckoutButton 
               price={product.price.toString()} 
               productName={product.title} 
               productId={product.id} 
             />
-            {/* 👈 TOMBOL WHATSAPP BARU */}
+            
             <a 
               href={`https://wa.me/?text=${waMessage}`} 
               target="_blank"

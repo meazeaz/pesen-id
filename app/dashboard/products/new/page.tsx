@@ -8,7 +8,9 @@ import {
   Plus, Trash2, GripVertical, CheckCircle2, DollarSign, 
   Layers, FileText, Globe, Eye
 } from "lucide-react";
+
 import { createProduct } from "@/app/actions/product";
+import { UploadDropzone } from "@/utils/uploadthing"; // 👈 Ini penting agar UploadDropzone dikenali
 
 export default function AddProductPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,10 +24,11 @@ export default function AddProductPage() {
     description: "",
     category: "E-book",
     status: "active",
+    imageUrl: "", 
+    fileUrl: "",  
   });
 
   const [features, setFeatures] = useState([""]); 
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Handlers
@@ -43,17 +46,12 @@ export default function AddProductPage() {
     }
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedImage(file);
-      setPreviewUrl(URL.createObjectURL(file)); 
-    }
-  };
-
   // --- FUNGSI SUBMIT (SIMPAN DATA) ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.imageUrl) return alert("Mohon upload gambar cover produk dulu ya!");
+    if (!formData.fileUrl) return alert("Mohon upload file digital (PDF/ZIP) produknya!");
+
     setIsLoading(true);
 
     try {
@@ -65,6 +63,8 @@ export default function AddProductPage() {
         category: formData.category,
         status: formData.status,
         features: features.filter(f => f.trim() !== ""),
+        imageUrl: formData.imageUrl,
+        fileUrl: formData.fileUrl,
       };
 
       // Tembak ke Database lewat Server Action
@@ -103,12 +103,6 @@ export default function AddProductPage() {
           </div>
           <div className="flex gap-3">
             <button 
-              type="button" 
-              className="hidden sm:flex px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-full text-sm font-medium hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-            >
-              Simpan Draft
-            </button>
-            <button 
               type="submit" 
               disabled={isLoading}
               className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-black font-bold rounded-full text-sm shadow-lg flex items-center gap-2 hover:opacity-90 transition-all disabled:opacity-70"
@@ -126,7 +120,7 @@ export default function AddProductPage() {
           
           {/* 1. Informasi Dasar */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 lg:p-8 shadow-sm">
-            <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+            <h3 className="font-bold text-lg mb-6 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-4">
               <FileText className="w-5 h-5 text-purple-500" /> Informasi Produk
             </h3>
             
@@ -160,7 +154,7 @@ export default function AddProductPage() {
 
           {/* 2. Harga */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 lg:p-8 shadow-sm">
-            <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+            <h3 className="font-bold text-lg mb-6 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-4">
               <DollarSign className="w-5 h-5 text-green-500" /> Harga Jual
             </h3>
             
@@ -186,7 +180,7 @@ export default function AddProductPage() {
                   <input 
                     type="number" 
                     placeholder="0"
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition-all text-slate-500 line-through"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition-all text-slate-500 line-through font-medium"
                     value={formData.discountPrice}
                     onChange={(e) => setFormData({...formData, discountPrice: e.target.value})}
                   />
@@ -198,14 +192,14 @@ export default function AddProductPage() {
 
           {/* 3. Fitur / Keunggulan */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 lg:p-8 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
               <h3 className="font-bold text-lg flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-blue-500" /> Poin Keunggulan
               </h3>
               <button 
                 type="button"
                 onClick={addFeature}
-                className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+                className="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:underline"
               >
                 <Plus className="w-3 h-3" /> Tambah Baris
               </button>
@@ -229,7 +223,7 @@ export default function AddProductPage() {
                       <button 
                         type="button"
                         onClick={() => removeFeature(index)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-md transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -245,56 +239,71 @@ export default function AddProductPage() {
         {/* --- KOLOM KANAN (Sidebar Settings) --- */}
         <div className="space-y-8">
           
-          {/* 1. Media Upload */}
+          {/* 1. Media Upload (Gambar & File) */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
-            <h3 className="font-bold text-sm text-slate-500 uppercase tracking-wider mb-4">Media Produk</h3>
+            <h3 className="font-bold text-sm text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">Media Produk</h3>
             
+            {/* Upload Gambar */}
             <div className="mb-6">
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Cover / Thumbnail</label>
               
-              <label className="aspect-video relative overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-[#1a1a1a] hover:bg-slate-100 dark:hover:bg-[#252525] transition-colors cursor-pointer flex flex-col items-center justify-center text-center group">
-                
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={handleImageSelect}
+              {formData.imageUrl ? (
+                <div className="relative aspect-video rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group">
+                   <img src={formData.imageUrl} alt="Cover" className="w-full h-full object-cover" />
+                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button type="button" onClick={() => { setFormData({...formData, imageUrl: ""}); setPreviewUrl(null); }} className="px-4 py-2 bg-red-500 text-white font-bold rounded-lg text-xs hover:bg-red-600 transition-colors">Hapus Cover</button>
+                   </div>
+                </div>
+              ) : (
+                <UploadDropzone
+                  endpoint="imageUploader"
+                  onClientUploadComplete={(res: any) => {
+                    setFormData({...formData, imageUrl: res[0].url});
+                    setPreviewUrl(res[0].url);
+                    alert("Gambar berhasil diupload!");
+                  }}
+                  onUploadError={(error: any) => {
+                    alert(`ERROR! ${error.message}`);
+                  }}
+                  className="border-dashed border-2 border-slate-300 dark:border-slate-700 rounded-2xl p-8 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-colors"
                 />
-
-                {previewUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={previewUrl} alt="Preview Thumbnail" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="p-4 flex flex-col items-center">
-                    <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                      <ImageIcon className="w-5 h-5" />
-                    </div>
-                    <p className="text-xs text-slate-500 font-medium">Klik untuk upload gambar</p>
-                    <p className="text-[10px] text-slate-400 mt-1">PNG, JPG (Max. 2MB)</p>
-                  </div>
-                )}
-              </label>
+              )}
             </div>
 
-            {/* File Product */}
+            {/* Upload File Digital */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">File Produk Digital</label>
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#1a1a1a] p-4 flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
-                  <UploadCloud className="w-5 h-5" />
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">File Produk Digital (PDF/ZIP)</label>
+              
+              {formData.fileUrl ? (
+                <div className="rounded-2xl border border-green-500/30 bg-green-50 dark:bg-green-900/10 p-4 flex items-center gap-3 transition-colors">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-lg">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <p className="text-xs font-bold truncate text-green-700 dark:text-green-500">File Tersimpan!</p>
+                    <p className="text-[10px] text-slate-500 line-clamp-1">{formData.fileUrl}</p>
+                  </div>
+                  <button type="button" onClick={() => setFormData({...formData, fileUrl: ""})} className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors">Ganti File</button>
                 </div>
-                <div className="flex-1 overflow-hidden">
-                  <p className="text-xs font-bold truncate text-slate-700 dark:text-white">Belum ada file</p>
-                  <p className="text-[10px] text-slate-500">PDF, ZIP, MP4</p>
-                </div>
-                <button type="button" className="text-xs font-bold text-purple-600 hover:underline">Upload</button>
-              </div>
+              ) : (
+                <UploadDropzone
+                  endpoint="productFileUploader"
+                  onClientUploadComplete={(res: any) => {
+                    setFormData({...formData, fileUrl: res[0].url});
+                    alert("File digital berhasil disimpan!");
+                  }}
+                  onUploadError={(error: any) => {
+                    alert(`ERROR! ${error.message}`);
+                  }}
+                  className="border-dashed border-2 border-slate-300 dark:border-slate-700 rounded-2xl p-6 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors ut-label:text-blue-500 ut-button:bg-blue-600"
+                />
+              )}
             </div>
           </div>
 
-          {/* 2. Pengaturan (DI SINI "JASA" DIUBAH JADI "ASET DESIGN") */}
+          {/* 2. Pengaturan */}
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
-            <h3 className="font-bold text-sm text-slate-500 uppercase tracking-wider mb-4">Pengaturan</h3>
+            <h3 className="font-bold text-sm text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">Pengaturan Toko</h3>
             
             <div className="space-y-4">
               <div>
@@ -302,7 +311,7 @@ export default function AddProductPage() {
                 <div className="relative">
                   <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <select 
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:border-purple-500 appearance-none"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500 appearance-none font-medium cursor-pointer"
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
                   >
@@ -310,7 +319,6 @@ export default function AddProductPage() {
                     <option value="Course">Course</option>
                     <option value="Template">Template</option>
                     <option value="Software">Software</option>
-                    {/* 👇 INI YANG KITA UBAH! */}
                     <option value="Aset Design">Aset Design</option>
                   </select>
                 </div>
@@ -321,7 +329,7 @@ export default function AddProductPage() {
                 <div className="relative">
                   <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <select 
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:border-purple-500 appearance-none"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500 appearance-none font-medium cursor-pointer"
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value})}
                   >
@@ -332,11 +340,6 @@ export default function AddProductPage() {
                 </div>
               </div>
 
-              <div className="pt-2">
-                <button type="button" className="w-full py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1a1a1a] flex items-center justify-center gap-2 transition-colors">
-                  <Eye className="w-3 h-3" /> Lihat Preview Halaman
-                </button>
-              </div>
             </div>
           </div>
 

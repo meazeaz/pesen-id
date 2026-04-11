@@ -42,10 +42,9 @@ export async function createProduct(data: any) {
   if (!user) return { success: false, message: "User tidak ditemukan" };
 
   try {
-    // 3. Simpan Data ke PostgreSQL dengan mengunci kepemilikan (userId)
     await prisma.product.create({
       data: {
-        userId: user.id, // 👈 KUNCI ISOLASI DATA: Produk ini resmi milik user yang login
+        userId: user.id, 
         title: data.title,
         description: data.description,
         price: Number(data.price),
@@ -53,6 +52,8 @@ export async function createProduct(data: any) {
         category: data.category,
         status: data.status || "active",
         features: data.features || [],
+        imageUrl: data.imageUrl, // 👈 TAMBAHKAN INI
+        fileUrl: data.fileUrl,   // 👈 TAMBAHKAN INI
       },
     });
 

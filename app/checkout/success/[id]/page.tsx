@@ -15,7 +15,7 @@ export default async function CheckoutSuccessPage({ params }: Props) {
     where: { id: orderId },
     include: {
       items: { include: { product: true } },
-      review: true, // 👈 Cek apakah pesanan ini sudah pernah diulas
+      review: true, // Cek apakah pesanan ini sudah pernah diulas
     },
   });
 
@@ -24,16 +24,19 @@ export default async function CheckoutSuccessPage({ params }: Props) {
     return notFound();
   }
 
-  // 2. Siapkan data untuk dikirim ke UI
+  // 2. Siapkan data komplit untuk Resi Digital UI
   const orderData = {
     id: order.id,
     customerName: order.customerName,
+    customerEmail: order.customerEmail, // 👈 Tambahan Email
+    date: order.createdAt.toISOString(), // 👈 Tambahan Tanggal
     amount: order.totalAmount,
     status: order.status,
     productId: order.items[0]?.productId || "",
     productTitle: order.items[0]?.product?.title || "Produk Digital",
-    userId: order.userId, // ID Pemilik Toko (Kreator)
-    hasReviewed: !!order.review, // true jika sudah diulas, false jika belum
+    fileUrl: order.items[0]?.product?.fileUrl || "", // 👈 PENTING: Link File untuk di-download
+    userId: order.userId, 
+    hasReviewed: !!order.review, 
   };
 
   return <CheckoutSuccessClient order={orderData} />;

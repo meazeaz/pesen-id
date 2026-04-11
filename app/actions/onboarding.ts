@@ -1,39 +1,48 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import crypto from "crypto";
+import { getServerSession } from "next-auth";
+import { cookies } from "next/headers"; // 👈 KITA IMPORT ALAT PENGHAPUS COOKIE
 
 export async function saveNewUsername(formData: FormData) {
-  const email = formData.get("email") as string;
-  const username = formData.get("username") as string;
-  const password = formData.get("password") as string; // 👈 Tangkap password baru
-
-  // 1. Cek apakah username sudah dipakai
-  const existingUser = await prisma.user.findUnique({
-    where: { username: username }
-  });
-
-  if (existingUser) {
-    return { success: false, message: "Yahh, username ini sudah dipakai orang lain." };
+  const session = await getServerSession();
+  if (!session?.user?.email) {
+    return { error: "Akses ditolak. Silakan login kembali." };
   }
 
-  // 2. Hash Password (Kita simpan di field 'name' sesuai arsitektur kita sebelumnya)
-  const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
+  const username = formData.get("username") as string;
 
-  // 3. Update username & password ke database
-  await prisma.user.update({
-    where: { email: email },
-    data: { 
-      username: username.toLowerCase().replace(/\s/g, ""),
-      name: hashedPassword // Simpan hash password agar dia bisa login manual nanti
+  if (!username) {
+    return { error: "Username tidak boleh kosong" };
+  }
+
+  try {
+    // 1. CEK DULU: Apakah username ini sudah ada yang punya?
+    const existingUser = await prisma.user.findFirst({
+      where: { username: username }
+    });
+
+    // Jika sudah ada yang pakai, tolak dan kirim pesan error (Fitur Username Unik)
+    if (existingUser) {
+      return { error: "Maaf, link toko ini sudah dipakai orang lain. Coba variasi nama lain!" };
     }
-  });
 
-  // 4. Hancurkan tiket onboarding agar bisa masuk Dashboard
-  const cookieStore = await cookies();
-  cookieStore.delete("pesen_onboarding");
+    // 2. SIMPAN JIKA BELUM ADA (Unik)
+    await prisma.user.update({
+      where: { email: session.user.email },
+      data: { 
+        username: username 
+      }
+    });
 
-  redirect("/dashboard");
+    // 3. 👈 KUNCI PERBAIKAN: HAPUS TIKET ONBOARDING!
+    // Agar Middleware (Satpam) mengizinkan kita masuk ke Dashboard
+    const cookieStore = await cookies();
+    cookieStore.delete("pesen_onboarding");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Gagal simpan username:", error);
+    return { error: "Terjadi kesalahan pada server." };
+  }
 }
