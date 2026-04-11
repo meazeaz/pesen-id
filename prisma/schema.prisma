@@ -15,6 +15,34 @@ enum OrderStatus {
   expired
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
+enum WithdrawalStatus {
+  PENDING
+  SUCCESS
+  REJECTED
+}
+
+model Withdrawal {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  amount         Int              // Jumlah yang ditarik
+  status         WithdrawalStatus @default(PENDING)
+  
+  // Informasi Bank saat ditarik (agar tetap tersimpan meskipun user ganti rekening)
+  bankName       String
+  accountNumber  String
+  holderName     String
+  
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
 // ============= MODELS =============
 model User {
   id            String        @id @default(cuid())
@@ -22,7 +50,15 @@ model User {
   username      String        @unique
   email         String        @unique
   image         String?
-  password      String?      
+  password      String?       
+  
+  // --- FIELD BARU UNTUK ADMIN & PRO ---
+  role          Role          @default(USER) // Membedakan User biasa & Admin
+  isPro         Boolean       @default(false) // Status berlangganan Pro
+  proUntil      DateTime?     // Opsional: Batas waktu langganan Pro
+  withdrawals   Withdrawal[] // Tambahkan baris ini di dalam model User
+  // -------------------------------------
+
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -32,7 +68,21 @@ model User {
   blocks        Block[]
   bankAccounts  BankAccount[]
   reviews       Review[]
+  notifications Notification[]
 }
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  type      String   @default("info") // Bisa "info", "success", "warning", "order" dll
+  link      String?  // Link opsional jika notifikasi diklik
+  createdAt DateTime @default(now())
+}
+
 
 model Profile {
   id        String   @id @default(cuid())

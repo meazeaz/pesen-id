@@ -13,9 +13,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Data tidak lengkap" }, { status: 400 });
     }
 
-    // --- LOGIKA UPDATE STATUS OTOMATIS ---
     if (status === "PAID") {
-      await prisma.order.update({
+      // 1. Update status pesanan jadi LUNAS
+      const order = await prisma.order.update({
         where: { id: orderId },
         data: { 
           status: "paid", 
@@ -23,10 +23,20 @@ export async function POST(req: Request) {
           paymentId: data.id 
         }
       });
+
+      // 2. Kirim Notifikasi ke Dashboard Kreator
+      await prisma.notification.create({
+        data: {
+          userId: order.userId,
+          title: "Pesanan Baru Masuk! 🎉",
+          message: `Hore! Ada pesanan lunas sebesar Rp ${order.totalAmount} dari ${order.customerName}.`,
+          type: "order",
+        }
+      });
+      
       console.log(`✅ Order ${orderId} LUNAS!`);
       
     } else if (status === "EXPIRED") {
-      // Pembeli telat bayar / waktu habis
       await prisma.order.update({
         where: { id: orderId },
         data: { status: "expired" }
@@ -34,7 +44,6 @@ export async function POST(req: Request) {
       console.log(`⏰ Order ${orderId} KADALUARSA.`);
 
     } else if (status === "FAILED") {
-      // Pembayaran gagal oleh bank
       await prisma.order.update({
         where: { id: orderId },
         data: { status: "failed" }

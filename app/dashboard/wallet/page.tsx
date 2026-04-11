@@ -13,30 +13,34 @@ export default async function WalletPage() {
     );
   }
 
-  // 1. Dapatkan KTP User (sekaligus tarik rekening bank pertamanya)
+  // 1. Dapatkan KTP User
   const user = await prisma.user.findUnique({ 
     where: { email: session.user.email },
     include: {
-      bankAccounts: true // 👈 Ambil data rekening bank dari database
+      bankAccounts: true
     }
   });
   
   if (!user) return null;
 
-  // 2. Tarik Total Pemasukan (Dari pesanan yang Lunas / Paid)
+  // 2. Tarik Total Pemasukan (Dari pesanan yang Lunas)
   const incomeData = await prisma.order.aggregate({
     where: { userId: user.id, status: "paid" },
     _sum: { totalAmount: true },
   });
   const totalIncome = incomeData._sum.totalAmount || 0;
 
-  // Catatan: Karena kita belum punya tabel penarikan (Withdrawal) 
-  // Untuk sementara, total expense (pengeluaran) kita set 0. 
-  // Saldo Aktif = Total Income - Total Expense
-  const totalExpense = 0; 
+  // 3. Tarik Total Pengeluaran (Penarikan yang Sukses ATAU masih Pending)
+  // Pending dihitung agar user tidak bisa menarik uang melebihi saldo jika ada request gantung
+  const withdrawnData = await prisma.withdrawal.aggregate({
+    where: { userId: user.id, status: { in: ["PENDING", "SUCCESS"] } },
+    _sum: { amount: true },
+  });
+  
+  const totalExpense = withdrawnData._sum.amount || 0; 
   const activeBalance = totalIncome - totalExpense;
 
-  // 3. Tarik Riwayat Pemasukan (Dari tabel Order)
+  // 4. Tarik Riwayat Pemasukan
   const recentOrders = await prisma.order.findMany({
     where: { userId: user.id, status: "paid" },
     orderBy: { createdAt: "desc" },
@@ -44,20 +48,42 @@ export default async function WalletPage() {
     include: { items: { include: { product: true } } }
   });
 
-  // 4. Format Riwayat Pemasukan agar cocok dengan UI Anda
-  const formattedTransactions = recentOrders.map(order => ({
+  // 5. Tarik Riwayat Penarikan Dana
+  const recentWithdrawals = await prisma.withdrawal.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  });
+
+  // 6. Format Riwayat Pemasukan
+  const formattedOrders = recentOrders.map(order => ({
     id: `TRX-${order.id.slice(0, 6).toUpperCase()}`,
     desc: `Penjualan: ${order.items[0]?.product?.title || "Produk dihapus"}`,
     date: order.createdAt.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
     amount: order.totalAmount,
     type: "income",
-    status: "success"
+    status: "success",
+    rawDate: order.createdAt // Untuk sorting
   }));
 
-  // 5. Siapkan Data Rekening Bank (Ambil yang pertama, jika ada)
+  // 7. Format Riwayat Penarikan
+  const formattedWithdrawals = recentWithdrawals.map(w => ({
+    id: `WD-${w.id.slice(0, 6).toUpperCase()}`,
+    desc: `Tarik Dana ke ${w.bankName}`,
+    date: w.createdAt.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+    amount: w.amount,
+    type: "expense",
+    status: w.status.toLowerCase(), // success, pending, rejected
+    rawDate: w.createdAt
+  }));
+
+  // 8. Gabungkan kedua riwayat dan urutkan dari yang paling baru
+  const allTransactions = [...formattedOrders, ...formattedWithdrawals]
+    .sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime())
+    .slice(0, 10);
+
   const primaryBank = user.bankAccounts.length > 0 ? user.bankAccounts[0] : null;
 
-  // 6. Kemas semua data asli ini
   const realData = {
     activeBalance: activeBalance,
     totalIncome: totalIncome,
@@ -67,9 +93,8 @@ export default async function WalletPage() {
       accountNumber: primaryBank.accountNumber,
       holderName: primaryBank.holderName
     } : null,
-    transactions: formattedTransactions
+    transactions: allTransactions
   };
 
-  // 7. Lempar ke UI
   return <WalletClient walletData={realData} />;
 }

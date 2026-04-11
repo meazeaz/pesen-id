@@ -1,4 +1,4 @@
-export type BlockType = "header" | "link" | "text" | "social";
+export type BlockType = "header" | "link" | "text" | "social" | "youtube" | "divider";
 
 export type Block = {
   id: string;
