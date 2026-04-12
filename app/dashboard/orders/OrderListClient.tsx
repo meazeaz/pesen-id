@@ -89,9 +89,6 @@ export default function OrderListClient({ initialOrders }: { initialOrders: Orde
               Mode Manual: Ubah status pesanan secara manual selama di Localhost.
             </p>
           </div>
-          <button className="px-5 py-2.5 bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white font-bold rounded-xl text-sm shadow-sm hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center gap-2">
-            <Download className="w-4 h-4" /> Export CSV
-          </button>
         </div>
 
         {/* --- STATS SUMMARY --- */}

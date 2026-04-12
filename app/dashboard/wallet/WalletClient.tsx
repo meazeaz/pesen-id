@@ -78,9 +78,6 @@ export default function WalletClient({ walletData }: { walletData: WalletData })
             <h1 className="text-2xl lg:text-3xl font-bold flex items-center gap-3">Dompet Saya</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Kelola saldo pendapatan dan penarikan dana.</p>
           </div>
-          <button className="px-5 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-black font-bold rounded-xl text-sm shadow-lg hover:opacity-90 transition-all flex items-center gap-2">
-            <Download className="w-4 h-4" /> Unduh Laporan
-          </button>
         </div>
 
         {/* --- CARDS SECTION --- */}
