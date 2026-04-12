@@ -28,6 +28,7 @@ export default function EditProductClient({ initialData }: { initialData: any })
     status: initialData.status || "active",
     imageUrl: initialData.imageUrl || "", // 👈 Tarik Link Gambar Lama
     fileUrl: initialData.fileUrl || "",   // 👈 Tarik Link File Lama
+    fileSize: Number(initialData.fileSize ?? 0),
   });
 
   const [features, setFeatures] = useState<string[]>(
@@ -68,6 +69,7 @@ export default function EditProductClient({ initialData }: { initialData: any })
         features: features.filter(f => f.trim() !== ""),
         imageUrl: formData.imageUrl,
         fileUrl: formData.fileUrl,
+        fileSize: formData.fileSize,
       };
 
       const response = await updateProduct(initialData.id, payload);
@@ -189,7 +191,8 @@ export default function EditProductClient({ initialData }: { initialData: any })
                    <UploadDropzone
                       endpoint="productFileUploader"
                       onClientUploadComplete={(res: any) => {
-                        setFormData({...formData, fileUrl: res[0].url});
+                        const uploadedSize = Number(res[0]?.file?.size ?? res[0]?.size ?? 0);
+                        setFormData({...formData, fileUrl: res[0].url, fileSize: uploadedSize});
                         alert("File digital berhasil disimpan!");
                       }}
                       onUploadError={(error: any) => {

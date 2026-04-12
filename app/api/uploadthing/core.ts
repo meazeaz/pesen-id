@@ -17,9 +17,9 @@ export const ourFileRouter = {
     }),
 
   productFileUploader: f({
-    // Tambahkan konfigurasi ini agar menerima PDF dan ZIP
-    pdf: { maxFileSize: "32MB" },
-    blob: { maxFileSize: "32MB" }, // Blob ini kunci agar ZIP/RAR bisa masuk
+    // Produk digital bisa sampai 256MB agar Pro Creator dapat upload file besar.
+    pdf: { maxFileSize: "256MB" },
+    blob: { maxFileSize: "256MB" }, // Blob ini kunci agar ZIP/RAR bisa masuk
   })
     .middleware(async ({ req }) => {
       // Logika proteksi login Anda...

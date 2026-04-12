@@ -18,7 +18,25 @@ export default async function DashboardPage() {
 
   // Cari KTP (ID) User yang sedang login
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) return null;
+  
+  // 👇 PERBAIKAN: Penanganan Sesi Zombie (Layar tidak akan blank hitam lagi) 👇
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh] text-center animate-in fade-in zoom-in duration-500">
+        <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-full flex items-center justify-center mb-4">
+           <span className="text-4xl">🧟</span>
+        </div>
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Sesi Zombie Terdeteksi!</h2>
+        <p className="text-slate-500 dark:text-slate-400 max-w-md mb-6">
+          Akun Anda sudah dihapus dari sistem, tetapi browser masih menyimpan sisa riwayat login lama.
+        </p>
+        <p className="text-sm font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-6 py-3 rounded-xl border border-slate-200 dark:border-slate-700">
+          👉 Silakan klik tombol <span className="text-red-500">Keluar (Logout)</span> di sudut kiri bawah layar Anda.
+        </p>
+      </div>
+    );
+  }
+  // 👆 AKHIR PERBAIKAN 👆
 
   // 1. Ambil Total Pendapatan (Pesanan LUNAS)
   const revenueData = await prisma.order.aggregate({

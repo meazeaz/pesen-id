@@ -3,14 +3,13 @@
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { saveNewUsername } from "@/app/actions/onboarding";
-import { Loader2, ArrowRight, CheckCircle2, Sparkles, Lock, Eye, EyeOff } from "lucide-react";
+import { Loader2, ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 
 function OnboardingContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
   
   const [username, setUsername] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -22,9 +21,13 @@ function OnboardingContent() {
     const formData = new FormData(e.currentTarget);
     const result = await saveNewUsername(formData);
 
-    if (result?.success === false) {
-      setErrorMsg(result.message);
-      setIsLoading(false);
+    // 👇 KUNCI PERBAIKAN: Cek sukses/gagal dengan benar 👇
+    if (!result?.success) {
+      setErrorMsg(result?.message || "Terjadi kesalahan sistem.");
+      setIsLoading(false); // Matikan loading jika gagal
+    } else {
+      // JIKA SUKSES, LANGSUNG LEMPAR KE DASHBOARD! 🚀
+      window.location.href = "/dashboard";
     }
   };
 
@@ -42,7 +45,7 @@ function OnboardingContent() {
 
         <h1 className="text-2xl font-black text-center mb-2 text-slate-900 dark:text-white">Hampir Selesai! 🎉</h1>
         <p className="text-center text-slate-500 dark:text-slate-400 text-sm mb-8">
-          Klaim link toko kamu dan buat password cadangan agar bisa login di perangkat lain.
+          Klaim link toko kamu untuk mulai berjualan produk digitalmu sekarang juga.
         </p>
 
         {errorMsg && (

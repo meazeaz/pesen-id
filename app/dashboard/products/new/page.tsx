@@ -25,7 +25,8 @@ export default function AddProductPage() {
     category: "E-book",
     status: "active",
     imageUrl: "", 
-    fileUrl: "",  
+    fileUrl: "",
+    fileSize: 0,  
   });
 
   const [features, setFeatures] = useState([""]); 
@@ -65,6 +66,7 @@ export default function AddProductPage() {
         features: features.filter(f => f.trim() !== ""),
         imageUrl: formData.imageUrl,
         fileUrl: formData.fileUrl,
+        fileSize: formData.fileSize,
       };
 
       // Tembak ke Database lewat Server Action
@@ -289,7 +291,8 @@ export default function AddProductPage() {
                 <UploadDropzone
                   endpoint="productFileUploader"
                   onClientUploadComplete={(res: any) => {
-                    setFormData({...formData, fileUrl: res[0].url});
+                    const uploadedSize = Number(res[0]?.file?.size ?? res[0]?.size ?? 0);
+                    setFormData({...formData, fileUrl: res[0].url, fileSize: uploadedSize});
                     alert("File digital berhasil disimpan!");
                   }}
                   onUploadError={(error: any) => {

@@ -2,12 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth"; // 👈 Kunci utama untuk mendeteksi siapa yang login
+import { getServerSession } from "next-auth"; 
 
-// ==========================================
-// 1. FUNGSI AMBIL DAFTAR PRODUK (READ)
-// ==========================================
-// Fungsi baru ini sangat penting untuk menampilkan produk di tabel Dashboard
 export async function getMyProducts() {
   const session = await getServerSession();
   if (!session?.user?.email) return [];
@@ -16,10 +12,9 @@ export async function getMyProducts() {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) return [];
 
-    // HANYA ambil produk yang KTP-nya (userId) sama dengan user yang login
     const products = await prisma.product.findMany({
       where: { userId: user.id },
-      orderBy: { createdAt: "desc" } // Urutkan dari yang terbaru dibuat
+      orderBy: { createdAt: "desc" } 
     });
 
     return products;
@@ -29,17 +24,37 @@ export async function getMyProducts() {
   }
 }
 
-// ==========================================
-// 2. FUNGSI UNTUK MENAMBAH PRODUK (CREATE)
-// ==========================================
 export async function createProduct(data: any) {
-  // 1. Deteksi sesi user yang sedang login
   const session = await getServerSession();
   if (!session?.user?.email) return { success: false, message: "Akses ditolak" };
 
-  // 2. Cari data user di database berdasarkan email sesi
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  const user = await prisma.user.findUnique({ 
+    where: { email: session.user.email },
+    include: { _count: { select: { products: true } } } 
+  });
   if (!user) return { success: false, message: "User tidak ditemukan" };
+
+  const isPro = Boolean(user.isPro);
+  
+  // LIMIT JUMLAH PRODUK
+  if (!isPro && user._count.products >= 10) {
+    return { 
+      success: false, 
+      message: "Limit tercapai! Akun Starter maksimal 10 produk. Upgrade ke Pro untuk unlimited." 
+    };
+  }
+
+  // LIMIT UKURAN FILE
+  const fileSize = Number(data.fileSize ?? 0);
+  const maxFileSize = isPro ? 200 * 1024 * 1024 : 32 * 1024 * 1024; // 200MB vs 32MB
+  if (data.fileUrl && fileSize > maxFileSize) {
+    return {
+      success: false,
+      message: !isPro
+        ? "Batas file untuk Starter hanya 32MB. Upgrade ke Pro Creator untuk upload hingga 200MB."
+        : "Ukuran file melebihi batas 200MB."
+    };
+  }
 
   try {
     await prisma.product.create({
@@ -52,8 +67,8 @@ export async function createProduct(data: any) {
         category: data.category,
         status: data.status || "active",
         features: data.features || [],
-        imageUrl: data.imageUrl, // 👈 TAMBAHKAN INI
-        fileUrl: data.fileUrl,   // 👈 TAMBAHKAN INI
+        imageUrl: data.imageUrl, 
+        fileUrl: data.fileUrl,   
       },
     });
 
@@ -65,9 +80,6 @@ export async function createProduct(data: any) {
   }
 }
 
-// ==========================================
-// 3. FUNGSI UNTUK MENGHAPUS PRODUK (DELETE)
-// ==========================================
 export async function deleteProduct(id: string) {
   const session = await getServerSession();
   if (!session?.user?.email) return { success: false, message: "Akses ditolak" };
@@ -76,8 +88,6 @@ export async function deleteProduct(id: string) {
   if (!user) return { success: false, message: "User tidak ditemukan" };
 
   try {
-    // 👈 KEAMANAN GANDA: Gunakan deleteMany untuk memastikan ID Produk DAN ID Pemilik cocok!
-    // Ini mencegah hacker menghapus produk orang lain.
     await prisma.product.deleteMany({
       where: { 
         id: id,
@@ -93,9 +103,6 @@ export async function deleteProduct(id: string) {
   }
 }
 
-// ==========================================
-// 4. FUNGSI UNTUK MENGEDIT PRODUK (UPDATE)
-// ==========================================
 export async function updateProduct(id: string, data: any) {
   const session = await getServerSession();
   if (!session?.user?.email) return { success: false, message: "Akses ditolak" };
@@ -103,8 +110,20 @@ export async function updateProduct(id: string, data: any) {
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) return { success: false, message: "User tidak ditemukan" };
 
+  const isPro = Boolean(user.isPro);
+  const fileSize = Number(data.fileSize ?? 0);
+  const maxFileSize = isPro ? 200 * 1024 * 1024 : 32 * 1024 * 1024;
+
+  if (data.fileUrl && fileSize > maxFileSize) {
+    return {
+      success: false,
+      message: !isPro
+        ? "Batas file untuk Starter hanya 32MB. Upgrade ke Pro Creator untuk upload hingga 200MB."
+        : "Ukuran file melebihi batas 200MB."
+    };
+  }
+
   try {
-    // 👈 KEAMANAN GANDA: Pastikan hanya pemilik asli yang bisa mengupdate datanya
     await prisma.product.updateMany({
       where: { 
         id: id,
@@ -118,6 +137,8 @@ export async function updateProduct(id: string, data: any) {
         category: data.category,
         status: data.status,
         features: data.features || [],
+        imageUrl: data.imageUrl,
+        fileUrl: data.fileUrl,
       },
     });
 

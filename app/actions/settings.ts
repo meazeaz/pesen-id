@@ -11,26 +11,28 @@ export async function saveProfile(data: {
   name: string; 
   bio: string; 
   email: string;
+  avatar: string; 
   layout: string; 
   bgType: string; 
   bgValue: string;
   font: string; 
   rounded: string; 
   shadow: string;
-  blocks: any; // Menerima JSON array dari susunan link
+  blocks: any; 
 }) {
   try {
-    // Cari user berdasarkan email dari sesi login
     const user = await prisma.user.findUnique({ where: { email: data.email } });
     if (!user) return { success: false, message: "User tidak ditemukan" };
 
-    // Update Nama di tabel User
+    // 👇 UPDATE NAMA & FOTO PROFIL DI TABEL USER
     await prisma.user.update({
       where: { id: user.id },
-      data: { name: data.name },
+      data: { 
+        name: data.name,
+        image: data.avatar // Simpan URL gambar baru ke database
+      },
     });
 
-    // Update Bio, Tampilan, dan Blok Konten di tabel Profile
     await prisma.profile.upsert({
       where: { userId: user.id },
       update: { 
@@ -56,7 +58,9 @@ export async function saveProfile(data: {
       },
     });
 
-    revalidatePath("/dashboard/settings");
+    // 👇 KUNCI SINKRONISASI GLOBAL (Refresh Paksa Semua Data Layar)
+    revalidatePath("/", "layout"); 
+    
     return { success: true, message: "Pengaturan berhasil disimpan!" };
   } catch (error) {
     console.error(error);
@@ -71,20 +75,12 @@ export async function addBankAccount(data: { bankName: string; accountNumber: st
   try {
     const user = await prisma.user.findUnique({ where: { email: data.email } });
     if (!user) return { success: false, message: "User tidak ditemukan" };
-
     await prisma.bankAccount.create({
-      data: {
-        userId: user.id,
-        bankName: data.bankName,
-        accountNumber: data.accountNumber,
-        holderName: data.holderName,
-      },
+      data: { userId: user.id, bankName: data.bankName, accountNumber: data.accountNumber, holderName: data.holderName },
     });
-
     revalidatePath("/dashboard/settings");
     return { success: true, message: "Rekening berhasil ditambahkan!" };
   } catch (error) {
-    console.error(error);
     return { success: false, message: "Gagal menambahkan rekening." };
   }
 }
@@ -98,35 +94,22 @@ export async function deleteBankAccount(id: string) {
     revalidatePath("/dashboard/settings");
     return { success: true, message: "Rekening berhasil dihapus." };
   } catch (error) {
-    console.error(error);
     return { success: false, message: "Gagal menghapus rekening." };
   }
 }
 
 // ==========================================
-// 4. FUNGSI BARU: UPDATE / SETEL PASSWORD
+// 4. FUNGSI UPDATE / SETEL PASSWORD
 // ==========================================
 export async function updatePassword(formData: FormData) {
   const email = formData.get("email") as string;
   const newPassword = formData.get("newPassword") as string;
-
-  if (!email || !newPassword || newPassword.length < 6) {
-    return { success: false, message: "Password minimal 6 karakter." };
-  }
-
-  // Enkripsi password baru
+  if (!email || !newPassword || newPassword.length < 6) return { success: false, message: "Password minimal 6 karakter." };
   const hashedPassword = crypto.createHash("sha256").update(newPassword).digest("hex");
-
   try {
-    // Simpan ke database
-    await prisma.user.update({
-      where: { email: email },
-      data: { password: hashedPassword } // 👈 UBAH 'name' MENJADI 'password' DI SINI
-    });
-
+    await prisma.user.update({ where: { email: email }, data: { password: hashedPassword } });
     return { success: true, message: "Password berhasil disetel! Sekarang kamu bisa login manual." };
   } catch (error) {
-    console.error("Gagal update password:", error);
     return { success: false, message: "Terjadi kesalahan server saat menyimpan password." };
   }
 }
@@ -138,28 +121,32 @@ export async function getUserSettings(email: string) {
   try {
     const user = await prisma.user.findUnique({
       where: { email: email },
-      include: {
-        profile: true, // Ambil data bio dan tampilan dari tabel profile
-        bankAccounts: true // Ambil data rekening bank
-      }
+      include: { profile: true, bankAccounts: true }
     });
 
     if (!user) return null;
 
+    let isProActive = user.isPro;
+    if (user.isPro && user.proUntil && new Date() > user.proUntil) {
+      await prisma.user.update({ where: { id: user.id }, data: { isPro: false } });
+      isProActive = false;
+    }
+
     return {
       name: user.name || "",
       username: user.username || "",
+      image: user.image, // 👈 KUNCI: Tarik foto asli dari database
       bio: user.profile?.bio || "",
-      // Tarik pengaturan tampilan (berikan nilai default jika masih kosong di DB)
       layout: user.profile?.layout || "center",
       bgType: user.profile?.bgType || "gradient",
       bgValue: user.profile?.bgValue || "bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900",
       font: user.profile?.font || "font-sans",
       rounded: user.profile?.rounded || "lg",
       shadow: user.profile?.shadow || "md",
-      // Tarik blok konten (parse JSON-nya)
       blocks: user.profile?.blocks ? (user.profile.blocks as any) : [],
-      banks: user.bankAccounts || []
+      banks: user.bankAccounts || [],
+      isPro: isProActive,
+      proUntil: user.proUntil ? user.proUntil.toISOString() : null 
     };
   } catch (error) {
     console.error("Gagal mengambil data user:", error);

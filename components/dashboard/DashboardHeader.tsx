@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Search, CheckCircle2, Info } from "lucide-react";
+import { Bell, Search, CheckCircle2, Info, Crown } from "lucide-react";
 import { ThemeToggle } from "../ThemeToggle"; 
 import { markNotificationsAsRead } from "@/app/actions/header"; 
 
@@ -19,7 +19,7 @@ type HeaderProps = {
       title: string;
       message: string;
       isRead: boolean;
-      type: string; // <--- TAMBAHKAN BARIS INI
+      type: string; 
       createdAt: Date;
     }>;
     unreadCount: number;
@@ -29,7 +29,6 @@ type HeaderProps = {
 export default function DashboardHeader({ headerData }: HeaderProps) {
   const [showNotif, setShowNotif] = useState(false);
   
-  // Gunakan optional chaining (?.) untuk menghindari error jika headerData null
   const [unreadCount, setUnreadCount] = useState(headerData?.unreadCount || 0);
   const [notifications, setNotifications] = useState(headerData?.notifications || []);
 
@@ -55,16 +54,30 @@ export default function DashboardHeader({ headerData }: HeaderProps) {
     return date.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
   };
 
-  // Logic Status Dinamis
+  // ==========================================
+  // LOGIKA STATUS PRO CREATOR (REVISI WARNA DARK MODE)
+  // ==========================================
   const user = headerData?.user;
-  const roleLabel = user?.role === "ADMIN" ? "ADMIN" : user?.isPro ? "PRO CREATOR" : "BASIC USER";
-  const roleColor = user?.role === "ADMIN" ? "text-blue-500" : user?.isPro ? "text-purple-500" : "text-slate-500";
-  const borderRoleColor = user?.role === "ADMIN" ? "border-blue-500" : user?.isPro ? "border-purple-500" : "border-slate-200 dark:border-slate-800";
+  const isProUser = Boolean(user?.isPro);
+  
+  const roleBadge = user?.role === "ADMIN"
+    ? <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-full border border-blue-100 uppercase">ADMIN</span>
+    : isProUser
+      ? <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-800 dark:bg-transparent dark:text-slate-400 dark:border-slate-800 text-[10px] font-bold rounded-full uppercase tracking-widest border border-slate-200 transition-colors">
+          <Crown className="w-3.5 h-3.5" /> PRO CREATOR
+        </span>
+      : <span className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-full border border-slate-200 uppercase">BASIC USER</span>;
+      
+  const borderRoleColor = user?.role === "ADMIN" 
+    ? "border-blue-500" 
+    : isProUser 
+      ? "border-slate-300 dark:border-slate-700" // Warna border avatar menyesuaikan
+      : "border-slate-200 dark:border-slate-800";
 
   return (
     <header className="h-16 bg-white/80 dark:bg-[#0f0f0f]/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 md:px-8 sticky top-0 z-40">
       
-      {/* --- KIRI: SEARCH BAR --- */}
+      {/* SEARCH BAR */}
       <div className="flex items-center flex-1 max-w-md">
         <div className="relative w-full max-w-sm hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -76,12 +89,10 @@ export default function DashboardHeader({ headerData }: HeaderProps) {
         </div>
       </div>
 
-      {/* --- KANAN: ACTIONS & PROFILE --- */}
       <div className="flex items-center gap-2 sm:gap-4">
-        
         <ThemeToggle />
 
-        {/* --- LONCENG NOTIFIKASI --- */}
+        {/* LONCENG NOTIFIKASI */}
         <div className="relative">
           <button 
             onClick={handleOpenNotif} 
@@ -130,25 +141,25 @@ export default function DashboardHeader({ headerData }: HeaderProps) {
 
         <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
-        {/* --- PROFIL DINAMIS --- */}
+        {/* PROFIL DINAMIS */}
         {user ? (
           <div className="flex items-center gap-3 ml-1 sm:ml-0 cursor-pointer group">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-purple-500 transition-colors">
                  {user.name || user.username}
               </p>
-              <p className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${roleColor}`}>
-                {roleLabel}
-              </p>
+              <div className="mt-1">
+                {roleBadge}
+              </div>
             </div>
             <img 
               src={user.image || `https://api.dicebear.com/7.x/initials/svg?seed=${user.username}`} 
               alt="Profile" 
-              className={`w-9 h-9 rounded-xl object-cover border-2 shadow-sm ${borderRoleColor}`}
+              className={`w-10 h-10 rounded-xl object-cover border-2 shadow-sm ${borderRoleColor}`}
             />
           </div>
         ) : (
-          <div className="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse"></div>
+          <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse"></div>
         )}
 
       </div>

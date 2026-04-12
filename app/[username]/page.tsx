@@ -53,7 +53,10 @@ export default async function PublicProfilePage({ params }: Props) {
   const socialBlocks = blocks.filter(b => b.type === "social" && b.active);
   const contentBlocks = blocks.filter(b => b.type !== "social" && b.active);
 
-  const formatRupiah = (angka: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(angka);
+  // 👇 PERBAIKAN: Format Rupiah manual yang 100% aman untuk Server (SSR) & Client agar tidak Hydration Error
+  const formatRupiah = (angka: number) => {
+    return "Rp " + angka.toLocaleString("id-ID");
+  };
 
   return (
     <main className={`min-h-screen w-full ${bgValue} text-white ${font} overflow-x-hidden selection:bg-white/30`}>
@@ -103,7 +106,7 @@ export default async function PublicProfilePage({ params }: Props) {
                      </a>
                   )}
 
-                  {block.type === "youtube" && embedUrl && (
+                  {block.type === "youtube" && user.isPro && embedUrl && (
                      <div className={`overflow-hidden bg-white/5 border border-white/10 p-2 backdrop-blur-sm ${roundedClass} ${shadowClass}`}>
                        <iframe width="100%" height="250" src={embedUrl} title="YouTube Video" frameBorder="0" allowFullScreen className={`rounded-[calc(${roundedClass === 'rounded-full' ? '2rem' : roundedClass === 'rounded-2xl' ? '1rem' : '0.5rem'})] bg-black`}></iframe>
                        {block.content && <div className="text-sm text-center mt-3 mb-1 font-bold opacity-90">{block.content}</div>}
@@ -167,11 +170,16 @@ export default async function PublicProfilePage({ params }: Props) {
           )}
         </div>
 
-        <div className="text-center mt-24 opacity-50 hover:opacity-100 transition-opacity">
-           <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-black/30 rounded-full text-[10px] font-bold uppercase tracking-widest border border-white/10">
-              Powered by Pesen.id
-           </Link>
-        </div>
+        {!user.isPro ? (
+          <div className="text-center mt-24 opacity-50 hover:opacity-100 transition-opacity pb-12">
+             <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-black/30 rounded-full text-[10px] font-bold uppercase tracking-widest border border-white/10">
+                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse"></span>
+                Powered by Pesen.id
+             </Link>
+          </div>
+        ) : (
+          <div className="mt-32 pb-12"></div>
+        )}
 
       </div>
     </main>

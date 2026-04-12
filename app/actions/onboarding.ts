@@ -2,18 +2,18 @@
 
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { cookies } from "next/headers"; // 👈 KITA IMPORT ALAT PENGHAPUS COOKIE
+import { cookies } from "next/headers"; 
 
 export async function saveNewUsername(formData: FormData) {
   const session = await getServerSession();
   if (!session?.user?.email) {
-    return { error: "Akses ditolak. Silakan login kembali." };
+    return { success: false, message: "Akses ditolak. Silakan login kembali." };
   }
 
   const username = formData.get("username") as string;
 
   if (!username) {
-    return { error: "Username tidak boleh kosong" };
+    return { success: false, message: "Username tidak boleh kosong." };
   }
 
   try {
@@ -22,9 +22,9 @@ export async function saveNewUsername(formData: FormData) {
       where: { username: username }
     });
 
-    // Jika sudah ada yang pakai, tolak dan kirim pesan error (Fitur Username Unik)
+    // Jika sudah ada yang pakai, tolak dan kirim pesan error
     if (existingUser) {
-      return { error: "Maaf, link toko ini sudah dipakai orang lain. Coba variasi nama lain!" };
+      return { success: false, message: "Maaf, link toko ini sudah dipakai orang lain. Coba variasi nama lain!" };
     }
 
     // 2. SIMPAN JIKA BELUM ADA (Unik)
@@ -35,14 +35,13 @@ export async function saveNewUsername(formData: FormData) {
       }
     });
 
-    // 3. 👈 KUNCI PERBAIKAN: HAPUS TIKET ONBOARDING!
-    // Agar Middleware (Satpam) mengizinkan kita masuk ke Dashboard
+    // 3. HAPUS TIKET ONBOARDING!
     const cookieStore = await cookies();
     cookieStore.delete("pesen_onboarding");
 
     return { success: true };
   } catch (error) {
     console.error("Gagal simpan username:", error);
-    return { error: "Terjadi kesalahan pada server." };
+    return { success: false, message: "Terjadi kesalahan pada server." };
   }
 }

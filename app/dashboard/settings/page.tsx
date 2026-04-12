@@ -14,7 +14,6 @@ import AppearanceTab from "@/components/settings/AppearanceTab";
 import AdvancedTab from "@/components/settings/AdvancedTab";
 import PaymentTab from "@/components/settings/PaymentTab";
 
-// Tab 'security' dihapus dari daftar tipe
 type TabType = "profile" | "appearance" | "advanced" | "payment";
 
 export default function SettingsPage() {
@@ -22,6 +21,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
+  const [isPro, setIsPro] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -42,7 +42,8 @@ export default function SettingsPage() {
             name: data.name || data.username,
             username: data.username, 
             bio: data.bio,
-            avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${data.username}&backgroundColor=8b5cf6`,
+            // Menggunakan image asli, jika kosong pakai karakter inisial
+            avatar: (data as any).image || `https://api.dicebear.com/7.x/initials/svg?seed=${data.username}&backgroundColor=8b5cf6`,
             layout: (data.layout as ProfileState["layout"]) || "center", 
             bgType: (data.bgType as ProfileState["bgType"]) || "gradient",
             bgValue: data.bgValue || "bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900",
@@ -52,6 +53,7 @@ export default function SettingsPage() {
             blocks: data.blocks || []
           }));
           setBanks(data.banks);
+          setIsPro((data as any).isPro || false);
         }
       });
     }
@@ -67,32 +69,25 @@ export default function SettingsPage() {
 
   const addBlock = (type: BlockType) => {
     const newBlock: Block = { 
-      id: `block-${Date.now()}`, 
-      type, 
-      content: type === "header" ? "Judul Baru" : "Teks Baru", 
-      active: true,
-      url: (type === "link" || type === "social") ? "https://" : undefined
+      id: `block-${Date.now()}`, type, content: type === "header" ? "Judul Baru" : "Teks Baru", active: true,
+      url: (type === "link" || type === "social" || type === "youtube") ? "https://" : undefined
     };
     setProfile({ ...profile, blocks: [newBlock, ...profile.blocks] });
   };
 
-  const removeBlock = (id: string) => {
-    setProfile({ ...profile, blocks: profile.blocks.filter((b: Block) => b.id !== id) });
-  };
-
-  const updateBlock = (id: string, field: keyof Block, value: string) => {
-    setProfile({ ...profile, blocks: profile.blocks.map((b: Block) => b.id === id ? { ...b, [field]: value } : b) });
-  };
-
-  const toggleBlockActive = (id: string) => {
-    setProfile({ ...profile, blocks: profile.blocks.map((b: Block) => b.id === id ? { ...b, active: !b.active } : b) });
-  };
+  const removeBlock = (id: string) => setProfile({ ...profile, blocks: profile.blocks.filter((b: Block) => b.id !== id) });
+  const updateBlock = (id: string, field: keyof Block, value: string) => setProfile({ ...profile, blocks: profile.blocks.map((b: Block) => b.id === id ? { ...b, [field]: value } : b) });
+  const toggleBlockActive = (id: string) => setProfile({ ...profile, blocks: profile.blocks.map((b: Block) => b.id === id ? { ...b, active: !b.active } : b) });
 
   const handleSaveAll = () => {
     if (!session?.user?.email) return;
     startTransition(async () => {
+      // 👇 PERBAIKAN: Menghapus "avatar: profile.avatar" karena ...profile sudah membawa data avatar!
       const res = await saveProfile({ email: session.user?.email as string, ...profile });
-      if (res.success) alert("✅ Pengaturan berhasil disimpan!");
+      if (res.success) {
+        alert("✅ Pengaturan berhasil disimpan!");
+        window.location.reload(); // Refresh agar foto Header ikut berubah!
+      }
       else alert("❌ Gagal menyimpan profil.");
     });
   };
@@ -159,11 +154,11 @@ export default function SettingsPage() {
           <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-800 rounded-[2rem] p-4 sm:p-6 shadow-sm">
             {activeTab === "profile" && (
               <DragDropContext onDragEnd={onDragEnd}>
-                <ProfileTab profile={profile} setProfile={setProfile} addBlock={addBlock} removeBlock={removeBlock} updateBlock={updateBlock} toggleBlockActive={toggleBlockActive} />
+                <ProfileTab profile={profile} setProfile={setProfile} addBlock={addBlock} removeBlock={removeBlock} updateBlock={updateBlock} toggleBlockActive={toggleBlockActive} isPro={isPro} />
               </DragDropContext>
             )}
             {activeTab === "appearance" && <AppearanceTab profile={profile} setProfile={setProfile} />}
-            {activeTab === "advanced" && <AdvancedTab profile={profile} />}
+            {activeTab === "advanced" && <AdvancedTab profile={profile} isPro={isPro} />}
             {activeTab === "payment" && <PaymentTab banks={banks} newBank={newBank} setNewBank={setNewBank} handleAddBank={handleAddBank} handleDeleteBank={handleDeleteBank} isPending={isPending} />}
           </div>
         </div>

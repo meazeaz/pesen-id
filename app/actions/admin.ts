@@ -21,6 +21,24 @@ export async function getAllUsers() {
   }
 }
 
+export async function getProUsers() {
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: 'USER', isPro: true },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: { products: true, orders: true }
+        }
+      }
+    });
+    return users;
+  } catch (error) {
+    console.error("Gagal mengambil data Pro Creator:", error);
+    return [];
+  }
+}
+
 export async function toggleProStatus(userId: string, currentStatus: boolean) {
   try {
     await prisma.user.update({
@@ -134,17 +152,15 @@ export async function getAllWithdrawals() {
 
 export async function processWithdrawal(id: string, newStatus: "SUCCESS" | "REJECTED") {
   try {
-    // 1. Update status di database
     const wd = await prisma.withdrawal.update({
       where: { id },
       data: { status: newStatus },
       include: { user: true } 
     });
 
-    // 2. Kirim Notifikasi ke Kreator
     await prisma.notification.create({
       data: {
-        userId: wd.user.id, // KUNCI PERBAIKAN: Gunakan id, bukan email
+        userId: wd.user.id, 
         title: newStatus === "SUCCESS" ? "Pencairan Berhasil! 💸" : "Pencairan Ditolak ❌",
         message: newStatus === "SUCCESS" 
           ? `Dana Rp ${wd.amount} telah ditransfer ke ${wd.bankName} Anda.` 
@@ -158,5 +174,46 @@ export async function processWithdrawal(id: string, newStatus: "SUCCESS" | "REJE
   } catch (error) {
     console.error("Gagal memproses penarikan:", error);
     return { success: false, message: "Gagal memproses penarikan" };
+  }
+}
+
+// ==========================================
+// FUNGSI BARU: BROADCAST PENGUMUMAN KE SEMUA KREATOR
+// ==========================================
+export async function broadcastNotification(formData: FormData) {
+  const title = formData.get("title") as string;
+  const message = formData.get("message") as string;
+  const type = formData.get("type") as string;
+
+  if (!title || !message) {
+    return { success: false, message: "Judul dan pesan tidak boleh kosong." };
+  }
+
+  try {
+    // 1. Ambil semua ID user yang berstatus USER (bukan admin)
+    const allUsers = await prisma.user.findMany({
+      where: { role: "USER" },
+      select: { id: true }
+    });
+
+    if (allUsers.length === 0) return { success: false, message: "Belum ada kreator untuk dikirimi pesan." };
+
+    // 2. Siapkan data notifikasi massal
+    const notificationsData = allUsers.map(user => ({
+      userId: user.id,
+      title: title,
+      message: message,
+      type: type || "info"
+    }));
+
+    // 3. Tembak massal ke database menggunakan createMany
+    await prisma.notification.createMany({
+      data: notificationsData
+    });
+
+    return { success: true, message: `Berhasil mengirim pengumuman ke ${allUsers.length} kreator!` };
+  } catch (error) {
+    console.error("Gagal broadcast:", error);
+    return { success: false, message: "Terjadi kesalahan server saat broadcast." };
   }
 }

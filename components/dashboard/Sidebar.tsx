@@ -3,27 +3,29 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react"; // 👈 Tambah useSession
+import { signOut, useSession } from "next-auth/react";
 import { 
   LayoutDashboard, ShoppingBag, Package, BarChart3, 
-  Wallet, CreditCard, MessageCircle, Star, Settings, 
-  ExternalLink, ChevronLeft, ChevronRight, LogOut 
+  Wallet, Star, Settings, ExternalLink, ChevronLeft, 
+  ChevronRight, LogOut, Crown 
 } from "lucide-react";
-import { getSidebarData } from "@/app/actions/sidebar"; // 👈 Import fungsi data
+import { getSidebarData } from "@/app/actions/sidebar"; 
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [storeData, setStoreData] = useState({ username: "", terjual: 0, saldo: 0, isPro: false });
+  
+  // State untuk mencegah Hydration Error
+  const [mounted, setMounted] = useState(false);
 
-  // State untuk menyimpan data dinamis dari database
-  const [storeData, setStoreData] = useState({ username: "", terjual: 0, saldo: 0 });
+  useEffect(() => { setMounted(true); }, []);
 
-  // Tarik data saat sidebar dimuat
   useEffect(() => {
     if (session?.user?.email) {
       getSidebarData().then((data) => {
-        if (data) setStoreData(data);
+        if (data) setStoreData(data as any); 
       });
     }
   }, [session]);
@@ -41,11 +43,8 @@ export default function Sidebar() {
     return false;
   };
 
-  // Helper untuk menyingkat angka Rupiah
   const formatRupiah = (angka: number) => {
-    // 👈 KUNCI PERBAIKAN: Tangani angka 0 secara manual agar Server & Browser akur
     if (angka === 0) return "Rp 0"; 
-
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
@@ -54,17 +53,19 @@ export default function Sidebar() {
     }).format(angka);
   };
 
-  const MenuItem = ({ href, icon: Icon, label }: any) => (
+  const MenuItem = ({ href, icon: Icon, label, highlight = false }: any) => (
     <Link 
       href={href} 
-      className={`relative flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium mb-1 group ${
+      className={`relative flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 py-2.5 rounded-xl transition-all duration-200 text-sm font-bold mb-1 group ${
         isActive(href) 
           ? "bg-purple-600 text-white shadow-lg shadow-purple-500/30" 
-          : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
+          : highlight
+            ? "bg-gradient-to-r from-purple-600/10 to-blue-600/10 text-purple-600 dark:text-purple-400 hover:bg-purple-600 hover:text-white border border-purple-500/20"
+            : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
       }`}
     >
       <div className="flex items-center gap-3">
-        <Icon className={`w-5 h-5 flex-shrink-0 ${isActive(href) ? "text-white" : "text-slate-400 group-hover:text-purple-500 transition-colors"}`} />
+        <Icon className={`w-5 h-5 flex-shrink-0 ${isActive(href) ? "text-white" : highlight ? "text-purple-500 group-hover:text-white" : "text-slate-400 group-hover:text-purple-500 transition-colors"}`} />
         {!isCollapsed && <span className="whitespace-nowrap transition-opacity duration-300">{label}</span>}
       </div>
       
@@ -77,11 +78,13 @@ export default function Sidebar() {
     </Link>
   );
 
+  // Jangan render apapun di server sampai React siap di browser
+  if (!mounted) return <aside className="w-64 min-h-screen bg-white dark:bg-[#121212] border-r border-slate-200 dark:border-slate-800 hidden md:block fixed left-0 top-0 bottom-0 z-50"></aside>;
+
   return (
     <aside className={`fixed left-0 top-0 z-50 h-screen bg-white dark:bg-[#0f0f0f] border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ${isCollapsed ? "w-20" : "w-64"}`}>
       
       <button 
-        suppressHydrationWarning // 👈 Tambahkan perintah ini untuk membungkam error
         onClick={() => setIsCollapsed(!isCollapsed)} 
         className="absolute -right-3.5 top-7 bg-white dark:bg-[#121212] border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-purple-600 rounded-full p-1 z-50 shadow-sm transition-transform hover:scale-110"
       >
@@ -121,34 +124,36 @@ export default function Sidebar() {
           <h3 className={`text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 transition-all ${isCollapsed ? 'text-center px-0' : 'px-4'}`}>{isCollapsed ? '•••' : 'Sistem'}</h3>
           <nav>
             <MenuItem href="/dashboard/settings" icon={Settings} label="Pengaturan" />
-            {/* Keamanan Akun Dihapus dari sini */}
+            {!storeData.isPro ? (
+               <MenuItem href="/dashboard/upgrade" icon={Crown} label="Upgrade Pro" highlight={true} />
+            ) : (
+               <div className={`mt-4 mx-4 flex items-center justify-center gap-2 py-2 px-3 bg-gradient-to-r from-yellow-400/20 to-yellow-600/20 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30 rounded-xl text-xs font-bold ${isCollapsed ? 'hidden' : 'flex'}`}>
+                 <Crown className="w-4 h-4" /> Creator Pro
+               </div>
+            )}
           </nav>
         </div>
       </div>
 
-      <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-3 overflow-hidden">
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-white/5 flex flex-col gap-3 overflow-hidden shrink-0">
         {!isCollapsed && (
            <div className="grid grid-cols-2 gap-3 transition-opacity duration-300">
               <div className="bg-white dark:bg-black border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex flex-col justify-center">
                  <p className="text-[10px] text-slate-500 uppercase font-bold">Terjual</p>
-                 {/* 👇 Data Dinamis */}
                  <p className="text-sm font-bold text-slate-900 dark:text-white">{storeData.terjual}</p>
               </div>
               <div className="bg-gradient-to-br from-purple-600 to-indigo-600 p-3 rounded-xl text-white shadow-lg shadow-purple-500/20 flex flex-col justify-center relative group cursor-pointer">
                  <p className="text-[10px] opacity-80 uppercase font-bold relative z-10">Saldo Aktif</p>
-                 {/* 👇 Data Dinamis & Terformat */}
                  <p className="text-sm font-bold relative z-10">{formatRupiah(storeData.saldo)}</p>
               </div>
            </div>
         )}
 
-        {/* 👇 Link Toko Dinamis */}
         <Link href={storeData.username ? `/${storeData.username}` : "#"} target="_blank" className={`flex items-center ${isCollapsed ? 'justify-center p-3' : 'justify-center gap-2 py-2.5'} w-full text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-white dark:hover:bg-white/10 transition-all group`} title={isCollapsed ? "Lihat Toko Saya" : ""}>
            <ExternalLink className={`w-4 h-4 flex-shrink-0 ${isCollapsed && 'group-hover:scale-110 transition-transform'}`} /> 
            {!isCollapsed && <span className="whitespace-nowrap">Lihat Toko Saya</span>}
         </Link>
 
-        {/* --- TOMBOL LOGOUT --- */}
         <button 
           onClick={() => signOut({ callbackUrl: '/login' })}
           title={isCollapsed ? "Keluar" : ""}
@@ -157,7 +162,6 @@ export default function Sidebar() {
            <LogOut className={`w-4 h-4 flex-shrink-0 ${isCollapsed && 'group-hover:scale-110 transition-transform'}`} />
            {!isCollapsed && <span className="whitespace-nowrap">Keluar (Logout)</span>}
         </button>
-        
       </div>
     </aside>
   );
